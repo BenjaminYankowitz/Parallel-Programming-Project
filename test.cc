@@ -1,6 +1,7 @@
 // to compile: mpic++  -std=c++11 test.cc rand_gen.cc
 // run example:  mpirun --bind-to core -np 8 /gpfs/u/home/PCPF/PCPFrttn/scratch/proj/self/a.out
 #include "generateRR.h"
+#include "parsefile.h"
 #include <mpi.h>
 #include <stdio.h>
 #include <iostream>
@@ -12,15 +13,15 @@ void populate_graph(graph &mygraph,
                     int world_size, 
                     int myrank)
 {
-    long max_id = world_size * num_node_per_rank;
+    NumberType max_id = world_size * num_node_per_rank;
 
     for (int i = 0; i < num_node_per_rank; i++) {
-        std::vector<long> neighbor_vector;
-        long current_id = i * world_size + myrank;
+        std::vector<NumberType> neighbor_vector;
+        NumberType current_id = i * world_size + myrank;
 
         // add neighbor from remote graph
         for (int k = 0; k < num_out_neighbor; k++) {
-            long neighbor_id = (current_id + k + 1) % max_id;
+            NumberType neighbor_id = (current_id + k + 1) % max_id;
             while ((neighbor_id - myrank) % world_size == 0) {
                 neighbor_id++;
 
@@ -41,6 +42,10 @@ void populate_graph(graph &mygraph,
     }
 }
 
+void populate_graph(graph &mygraph, const char* fileName)
+{
+    mygraph.adj_vector = readFile(fileName);
+}
 
 int main(int argc, char** argv) {
     MPI_Init(&argc, &argv);
@@ -81,7 +86,7 @@ int main(int argc, char** argv) {
         }
         std::cout << std::endl;
     }
-    generate_RR(mygraph, 2, rank, world_size);
+    generate_RR(mygraph, 2, rank, world_size, true);
 
     MPI_Finalize();
     return 0;
