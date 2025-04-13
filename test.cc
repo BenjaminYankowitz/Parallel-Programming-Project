@@ -1,7 +1,46 @@
+// to compile: mpic++  -std=c++11 test.cc rand_gen.cc
+// run example:  mpirun --bind-to core -np 8 /gpfs/u/home/PCPF/PCPFrttn/scratch/proj/self/a.out
 #include "generateRR.h"
 #include <mpi.h>
 #include <stdio.h>
 #include <iostream>
+
+void populate_graph(graph &mygraph, 
+                    int num_node_per_rank, 
+                    int num_in_neighbor, 
+                    int num_out_neighbor, 
+                    int world_size, 
+                    int myrank)
+{
+    long max_id = world_size * num_node_per_rank;
+
+    for (int i = 0; i < num_node_per_rank; i++) {
+        std::vector<long> neighbor_vector;
+        long current_id = i * world_size + myrank;
+
+        // add neighbor from remote graph
+        for (int k = 0; k < num_out_neighbor; k++) {
+            long neighbor_id = (current_id + k + 1) % max_id;
+            while ((neighbor_id - myrank) % world_size == 0) {
+                neighbor_id++;
+
+                if (neighbor_id >= max_id )
+                {
+                    neighbor_id = neighbor_id % max_id;
+                }
+            }
+            neighbor_vector.push_back(neighbor_id);
+        }
+
+        // add neighbor from local graph
+        for (int j = 0; j < num_in_neighbor; j++) {
+            neighbor_vector.push_back((current_id + (j + 1) * world_size) % max_id);
+        }
+
+        mygraph.adj_vector.push_back(neighbor_vector);
+    }
+}
+
 
 int main(int argc, char** argv) {
     MPI_Init(&argc, &argv);
@@ -16,17 +55,32 @@ int main(int argc, char** argv) {
 
     graph mygraph;
 
-    mygraph.nodes.push_back(rank);
-    mygraph.nodes.push_back(world_size + rank);
-    mygraph.nodes.push_back(2 * world_size + rank);
-    mygraph.nodes.push_back(3 * world_size + rank);
+    // mygraph.nodes.push_back(rank);
+    // mygraph.nodes.push_back(world_size + rank);
+    // mygraph.nodes.push_back(2 * world_size + rank);
+    // mygraph.nodes.push_back(3 * world_size + rank);
+
+    populate_graph(mygraph,
+                    5,
+                    3,
+                    2,
+                    world_size,
+                    rank
+    );
 
     std::cout << "Rank " << rank << " of " << world_size << " have graph of: ";
-    for (int i: mygraph.nodes)
+    for (int i = 0; i < mygraph.size(); i++)
     {
-        std::cout << i << " ";
+        std::cout << id_local_to_global(i, world_size, rank) << " ";
     }
     std::cout << "\n";
+    std::cout << "with adjacency matrix\n";
+    for (const auto& row : mygraph.adj_vector) {
+        for (const auto& elem : row) {
+            std::cout << elem << " ";
+        }
+        std::cout << std::endl;
+    }
     generate_RR(mygraph, 2, rank, world_size);
 
     MPI_Finalize();
