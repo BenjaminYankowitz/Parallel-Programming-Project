@@ -64,25 +64,32 @@ int main(int argc, char** argv) {
     // mygraph.nodes.push_back(world_size + rank);
     // mygraph.nodes.push_back(2 * world_size + rank);
     // mygraph.nodes.push_back(3 * world_size + rank);
-
-    populate_graph(mygraph,
-                    "../edges.txt"
+    #ifdef GENERATEGRAPH
+        populate_graph(mygraph,
+                    5,
+                    3,
+                    2,
+                    world_size,
+                    rank
     );
+    #else
+    populate_graph(mygraph,"../edges.txt");
+    #endif
 
     std::cout << "Rank " << rank << " of " << world_size << " have graph of: ";
-    // for (int i = 0; i < mygraph.size(); i++)
-    // {
-    //     std::cout << id_local_to_global(i, world_size, rank) << " ";
-    // }
-    // std::cout << "\n";
-    // std::cout << "with adjacency matrix\n";
-    // for (const auto& row : mygraph.adj_vector) {
-    //     for (const auto& elem : row) {
-    //         std::cout << elem << " ";
-    //     }
-    //     std::cout << std::endl;
-    // }
-    // generate_RR(mygraph, 2, rank, world_size, true);
+    for (int i = 0; i < mygraph.size(); i++)
+    {
+        std::cout << id_local_to_global(i, world_size, rank) << " ";
+    }
+    std::cout << "\n";
+    std::cout << "with adjacency matrix\n";
+    for (const auto& row : mygraph.adj_vector) {
+        for (const auto& elem : row) {
+            std::cout << elem << " ";
+        }
+        std::cout << std::endl;
+    }
+    generate_RR(mygraph, 2, rank, world_size, true);
 
     MPI_Finalize();
     return 0;
