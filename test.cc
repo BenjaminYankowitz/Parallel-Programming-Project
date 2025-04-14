@@ -1,6 +1,8 @@
 #include "generateRR.h"
+#include "selectSeed.h"
 #include <mpi.h>
 #include <stdio.h>
+#include <vector>
 #include <iostream>
 
 int main(int argc, char** argv) {
@@ -27,8 +29,8 @@ int main(int argc, char** argv) {
         std::cout << i << " ";
     }
     std::cout << "\n";
-    generate_RR(mygraph, 2, rank, world_size);
-
+    std::vector<std::set<long>> RRRsets = generate_RR(mygraph, 2, rank, world_size);
+	std::vector<long> = selectSeed(RRRsets, 10, RRRsets.size(), rank, world_size)
     MPI_Finalize();
     return 0;
 }
