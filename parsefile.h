@@ -32,7 +32,7 @@ inline void printErrorStatus(int errorPrint){
     }
 }
 
-inline std::vector<std::vector<int>> readFile(const char* fileName){
+inline std::vector<std::vector<std::pair<int,float>>> readFile(const char* fileName){
     MPI_File fh;
     int world_rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
@@ -47,7 +47,7 @@ inline std::vector<std::vector<int>> readFile(const char* fileName){
     }();
     const MPI_Offset groupSize=fileSize/world_size;
     const MPI_Offset startOffset = groupSize*world_rank;
-    constexpr MPI_Offset overlap = 25;
+    constexpr MPI_Offset overlap = 50;
     const MPI_Offset charsToRead = [&]{
         if(world_rank+1==world_size){
             return fileSize-startOffset;
@@ -83,27 +83,35 @@ inline std::vector<std::vector<int>> readFile(const char* fileName){
         return std::string_view();
     };
     getNextNewLine();
-    std::vector<std::pair<int,std::vector<int>>> readData;
+    std::vector<std::pair<int,std::vector<std::pair<int,float>>>> readData;
     for(std::string_view line = getNextNewLine();line.size()!=0; line = getNextNewLine()){
         if(line[0]=='#'){
             continue;
         }
         int to;
         int from;
-        std::size_t tabP = line.find_first_of('\t');
-        std::from_chars(line.data(),line.data()+tabP+1,from);
-        std::from_chars(line.data()+tabP+1,line.data()+line.size(),to);
+        float weight = 1.0;
+        std::size_t tabP1 = line.find_first_of('\t');
+        std::size_t tabP2 = line.find_first_of('\t',tabP1+1);
+        if(tabP2==std::string::npos){
+            tabP2 = line.size();
+        }
+        std::from_chars(line.data(),line.data()+tabP1,from);
+        std::from_chars(line.data()+tabP1+1,line.data()+tabP2,to);
+        if(tabP2!=line.size()){
+            std::from_chars(line.data()+tabP2+1,line.data()+line.size(),weight);
+        }
         if(!readData.empty()&&readData.back().first==from){
-            readData.back().second.push_back(to);
+            readData.back().second.push_back({to,weight});
         } else {
-            readData.push_back(std::pair<int,std::vector<int>>(from,{to}));
+            readData.push_back(std::pair<int,std::vector<std::pair<int,float>>>(from,{std::pair(to,weight)}));
         }
     }
     MPI_File_close(&fh);
     std::vector<int> startVals(world_size,-1);
     startVals[world_rank] = 0;
-    std::vector<std::vector<std::vector<int>>> splitValues(world_size);
-    for(std::pair<int,std::vector<int>>& line : readData){
+    std::vector<std::vector<std::vector<std::pair<int,float>>>> splitValues(world_size);
+    for(std::pair<int,std::vector<std::pair<int,float>>>& line : readData){
         int owner = line.first%world_size;
         int index = line.first/world_size;
         if(startVals[owner]==-1){
@@ -119,7 +127,8 @@ inline std::vector<std::vector<int>> readFile(const char* fileName){
         }
         splitValues[owner][modIndex] = std::move(line.second);
     }
-    std::vector<std::vector<int>> ret = std::move(splitValues[world_rank]);
+    std::vector<std::vector<std::pair<int,float>>> ret = std::move(splitValues[world_rank]);
+    constexpr std::size_t termSize = sizeof(std::pair<int,float>);
     const auto doRecive = [&](int partner){
         std::array<int,2> dataToRecive = {0};
         MPI_Status status;
@@ -143,6 +152,9 @@ inline std::vector<std::vector<int>> readFile(const char* fileName){
         for(std::size_t i = 0; i < numReciv; i++){
             long vecSize;
             MPI_Recv(&vecSize,1,MPI_LONG,partner,0,MPI_COMM_WORLD,&status);
+            if(vecSize<0){
+                std::cout << "Negative size vector " << vecSize << '\n';
+            }
             MPI_Get_count(&status,MPI_LONG,&count);
             if(count!=1){
                 std::cout << "failed to read size of vector, instead of 1, " << count << " were read instead\n";
@@ -151,10 +163,10 @@ inline std::vector<std::vector<int>> readFile(const char* fileName){
             }
             std::size_t oldelemNum = ret[theirStartVal+i].size();
             ret[theirStartVal+i].resize(oldelemNum+vecSize);
-            MPI_Recv(ret[theirStartVal+i].data()+oldelemNum, vecSize, MPI_INT, partner, 0, MPI_COMM_WORLD,&status);
-            MPI_Get_count(&status,MPI_INT,&count);
-            if(count!=vecSize){
-                std::cout << "failed to read " << vecSize << " elems only read " << status._ucount << "\n";
+            MPI_Recv(ret[theirStartVal+i].data()+oldelemNum, vecSize*termSize, MPI_BYTE, partner, 0, MPI_COMM_WORLD,&status);
+            MPI_Get_count(&status,MPI_BYTE,&count);
+            if(count!=vecSize*static_cast<long>(termSize)){
+                std::cout << "failed to read " << vecSize*termSize << " bytes only read " << count << "\n";
                 printErrorStatus(status.MPI_ERROR);
                 std::cout << '\n';
             }
@@ -166,10 +178,10 @@ inline std::vector<std::vector<int>> readFile(const char* fileName){
         if(startVals[partner]==-1){
             return;
         }
-        for(std::vector<int>& vec : splitValues[partner]){
+        for(std::vector<std::pair<int,float>>& vec : splitValues[partner]){
             const long vecSize = vec.size();
             MPI_Send(&vecSize,1,MPI_LONG,partner,0,MPI_COMM_WORLD);
-            MPI_Send(vec.data(), vecSize, MPI_INT, partner, 0, MPI_COMM_WORLD);
+            MPI_Send(vec.data(), vecSize*termSize, MPI_BYTE, partner, 0, MPI_COMM_WORLD);
         }
     };
     for(int rankahead = 1; rankahead <= world_size/2; rankahead++){
@@ -201,7 +213,7 @@ inline std::vector<std::vector<int>> readFile(const char* fileName){
             doSwap(partner2);
         }
     }
-    for(std::vector<int>& vec : ret){
+    for(std::vector<std::pair<int,float>>& vec : ret){
         std::sort(vec.begin(),vec.end());
     }
 
