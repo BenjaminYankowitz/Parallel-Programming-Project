@@ -10,7 +10,7 @@ struct EdgeType {
     FloatType weight;
 };
 inline std::ostream& operator<<(std::ostream& os, EdgeType edge){
-    os << edge.to << ',' << edge.weight;
+    return os << edge.to << ',' << edge.weight;
 }
 static_assert(std::is_trivial<EdgeType>::value);
 

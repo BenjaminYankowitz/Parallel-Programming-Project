@@ -215,7 +215,7 @@ inline std::vector<std::vector<EdgeType>> readFile(const char* fileName){
         }
     }
     for(std::vector<EdgeType>& vec : ret){
-        std::sort(vec.begin(),vec.end());
+        std::sort(vec.begin(),vec.end(),[](EdgeType e1, EdgeType e2){return e1.to < e2.to;});
     }
 
     return ret;
