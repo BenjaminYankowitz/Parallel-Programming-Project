@@ -7,16 +7,17 @@
 #include <random>
 #include "rand_gen.h"
 #include <iostream>
+#include "EdgeInfo.h"
 
 // typedef long NumberType;
-typedef int NumberType;
+typedef EdgeType::IntType NumberType;
 
 // graph collect node,edge information in terms of adjacency matrix
 // adj_vector[i] is a vector of neighbors of node i
 class graph
 {
 public:
-    std::vector<std::vector<NumberType>> adj_vector;
+    std::vector<std::vector<EdgeType>> adj_vector;
 
     size_t size()
     {
@@ -46,7 +47,7 @@ inline NumberType id_global_to_local(NumberType node_id, int world_size, int myr
 inline void MPI_send_frontier_raw(NumberType node_id, NumberType walk_id, NumberType level, int dest, int tag)
 {
     NumberType buffer[3] = {node_id, walk_id, level};
-
+    static_assert(std::is_same<NumberType, long>::value||std::is_same<NumberType, int>::value);
     if (std::is_same<NumberType, long>::value)
     {
         // using num type = long
@@ -59,7 +60,7 @@ inline void MPI_send_frontier_raw(NumberType node_id, NumberType walk_id, Number
     }
     else
     {
-        std::cout << "NumberType is long or int\n";
+        std::cout << "NumberType is not a long or int\n";
         exit(-1);
     }
 }
@@ -117,12 +118,12 @@ void select_random_nodes(unsigned long max_size, unsigned long num_sample, std::
 
         // printf("got x value = %d", x);
 
-        frontier_tuple new_tuple = {x * world_size + myrank, i, 0};
+        frontier_tuple new_tuple = {static_cast<NumberType>(x * world_size + myrank), i, 0};
         frontier.push(new_tuple);
     }
 }
 
-inline std::vector<NumberType> neighbor_of(graph mygraph, NumberType node, int world_size, int myrank)
+inline std::vector<EdgeType> neighbor_of(graph mygraph, NumberType node, int world_size, int myrank)
 {
     return mygraph.adj_vector[id_global_to_local(node, world_size, myrank)];
 }
@@ -181,15 +182,16 @@ inline std::vector<std::set<NumberType>> generate_RR(graph sub_graph, unsigned l
             RR[index].insert(tuple.walk_id);
 
             double cutoff = genrand_real1(); // random 0 to 1
-            std::vector<NumberType> neighbors = neighbor_of(sub_graph, tuple.node_id, world_size, myrank);
+            std::vector<EdgeType> neighbors = neighbor_of(sub_graph, tuple.node_id, world_size, myrank);
 
             if (DEBUG_MODE)
             {
                 std::cout << "Rank [" << myrank << "]" << "getting neighbor of " << tuple.node_id << "\n";
             }
 
-            for (NumberType &neigh_node_id : neighbors)
+            for (const EdgeType &neigh_node : neighbors)
             {
+                const EdgeType::IntType neigh_node_id = neigh_node.to;
                 if (DEBUG_MODE)
                 {
 

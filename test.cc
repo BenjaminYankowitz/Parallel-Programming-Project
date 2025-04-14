@@ -1,5 +1,6 @@
 // to compile: mpic++  -std=c++11 test.cc rand_gen.cc
 // run example:  mpirun --bind-to core -np 8 /gpfs/u/home/PCPF/PCPFrttn/scratch/proj/self/a.out
+#include "EdgeInfo.h"
 #include "generateRR.h"
 #include "parsefile.h"
 #include <mpi.h>
@@ -16,7 +17,7 @@ void populate_graph(graph &mygraph,
     NumberType max_id = world_size * num_node_per_rank;
 
     for (int i = 0; i < num_node_per_rank; i++) {
-        std::vector<NumberType> neighbor_vector;
+        std::vector<EdgeType> neighbor_vector;
         NumberType current_id = i * world_size + myrank;
 
         // add neighbor from remote graph
@@ -30,12 +31,12 @@ void populate_graph(graph &mygraph,
                     neighbor_id = neighbor_id % max_id;
                 }
             }
-            neighbor_vector.push_back(neighbor_id);
+            neighbor_vector.push_back({neighbor_id,1.0});
         }
 
         // add neighbor from local graph
         for (int j = 0; j < num_in_neighbor; j++) {
-            neighbor_vector.push_back((current_id + (j + 1) * world_size) % max_id);
+            neighbor_vector.push_back({(current_id + (j + 1) * world_size) % max_id,1.0});
         }
 
         mygraph.adj_vector.push_back(neighbor_vector);

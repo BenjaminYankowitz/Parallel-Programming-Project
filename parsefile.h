@@ -6,6 +6,7 @@
 #include <array>
 #include <vector>
 #include "mpi.h"
+#include "EdgeInfo.h"
 
 inline void printErrorStatus(int errorPrint){
     switch (errorPrint) {
@@ -32,7 +33,7 @@ inline void printErrorStatus(int errorPrint){
     }
 }
 
-inline std::vector<std::vector<std::pair<int,float>>> readFile(const char* fileName){
+inline std::vector<std::vector<EdgeType>> readFile(const char* fileName){
     MPI_File fh;
     int world_rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
@@ -83,7 +84,7 @@ inline std::vector<std::vector<std::pair<int,float>>> readFile(const char* fileN
         return std::string_view();
     };
     getNextNewLine();
-    std::vector<std::pair<int,std::vector<std::pair<int,float>>>> readData;
+    std::vector<std::pair<int,std::vector<EdgeType>>> readData;
     for(std::string_view line = getNextNewLine();line.size()!=0; line = getNextNewLine()){
         if(line[0]=='#'){
             continue;
@@ -104,14 +105,14 @@ inline std::vector<std::vector<std::pair<int,float>>> readFile(const char* fileN
         if(!readData.empty()&&readData.back().first==from){
             readData.back().second.push_back({to,weight});
         } else {
-            readData.push_back(std::pair<int,std::vector<std::pair<int,float>>>(from,{std::pair(to,weight)}));
+            readData.push_back(std::pair<int,std::vector<EdgeType>>(from,{EdgeType{to,weight}}));
         }
     }
     MPI_File_close(&fh);
     std::vector<int> startVals(world_size,-1);
     startVals[world_rank] = 0;
-    std::vector<std::vector<std::vector<std::pair<int,float>>>> splitValues(world_size);
-    for(std::pair<int,std::vector<std::pair<int,float>>>& line : readData){
+    std::vector<std::vector<std::vector<EdgeType>>> splitValues(world_size);
+    for(std::pair<int,std::vector<EdgeType>>& line : readData){
         int owner = line.first%world_size;
         int index = line.first/world_size;
         if(startVals[owner]==-1){
@@ -127,8 +128,8 @@ inline std::vector<std::vector<std::pair<int,float>>> readFile(const char* fileN
         }
         splitValues[owner][modIndex] = std::move(line.second);
     }
-    std::vector<std::vector<std::pair<int,float>>> ret = std::move(splitValues[world_rank]);
-    constexpr std::size_t termSize = sizeof(std::pair<int,float>);
+    std::vector<std::vector<EdgeType>> ret = std::move(splitValues[world_rank]);
+    constexpr std::size_t termSize = sizeof(EdgeType);
     const auto doRecive = [&](int partner){
         std::array<int,2> dataToRecive = {0};
         MPI_Status status;
@@ -178,7 +179,7 @@ inline std::vector<std::vector<std::pair<int,float>>> readFile(const char* fileN
         if(startVals[partner]==-1){
             return;
         }
-        for(std::vector<std::pair<int,float>>& vec : splitValues[partner]){
+        for(std::vector<EdgeType>& vec : splitValues[partner]){
             const long vecSize = vec.size();
             MPI_Send(&vecSize,1,MPI_LONG,partner,0,MPI_COMM_WORLD);
             MPI_Send(vec.data(), vecSize*termSize, MPI_BYTE, partner, 0, MPI_COMM_WORLD);
@@ -213,7 +214,7 @@ inline std::vector<std::vector<std::pair<int,float>>> readFile(const char* fileN
             doSwap(partner2);
         }
     }
-    for(std::vector<std::pair<int,float>>& vec : ret){
+    for(std::vector<EdgeType>& vec : ret){
         std::sort(vec.begin(),vec.end());
     }
 

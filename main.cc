@@ -10,7 +10,7 @@ bool DEBUG_MODE = true;
 
 void populate_graph_by_file(graph &mygraph, const char* fileName)
 {
-    mygraph.adj_vector = readFile(const char* fileName);
+    mygraph.adj_vector = readFile(fileName);
 }
 
 // TODO: import actual selectSeed
