@@ -74,7 +74,7 @@ inline bool operator<(const frontier_tuple &lhs, const frontier_tuple &rhs)
     return lhs.level < rhs.level;
 }
 
-void setup_generator(int myrank)
+inline void setup_generator(int myrank)
 {
     const unsigned long length = 624;
     unsigned long g_init[length];
@@ -88,7 +88,7 @@ void setup_generator(int myrank)
 
 // randomly select n nodes from vector and put in into frontier
 // this will randomly select WITH REPLACEMENT (possible duplicate)
-void select_random_nodes(const std::vector<int> &nodes, unsigned long num_sample, std::queue<frontier_tuple> &frontier)
+inline void select_random_nodes(const std::vector<int> &nodes, unsigned long num_sample, std::queue<frontier_tuple> &frontier)
 {
     if (nodes.empty() || num_sample <= 0)
     {
@@ -108,7 +108,7 @@ void select_random_nodes(const std::vector<int> &nodes, unsigned long num_sample
 }
 
 // max_size = number of nodes in subgraph
-void select_random_nodes(unsigned long max_size, unsigned long num_sample, std::queue<frontier_tuple> &frontier, int myrank, int world_size)
+inline void select_random_nodes(unsigned long max_size, unsigned long num_sample, std::queue<frontier_tuple> &frontier, int myrank, int world_size)
 {
     for (NumberType i = 0; i < num_sample; i++)
     {
@@ -247,12 +247,12 @@ inline std::vector<std::set<NumberType>> generate_RR(graph sub_graph, unsigned l
         {
             if (rank != myrank)
             {
-                if (std::is_same<NumberType, long>::value)
+                if constexpr (std::is_same<NumberType, long>::value)
                 {
                     // using num type = long
                     MPI_Send(stop, 3, MPI_LONG, rank, 0, MPI_COMM_WORLD);
                 }
-                else if (std::is_same<NumberType, int>::value)
+                else if constexpr (std::is_same<NumberType, int>::value)
                 {
                     // using num type = int
                     MPI_Send(stop, 3, MPI_INT, rank, 0, MPI_COMM_WORLD);
@@ -273,12 +273,12 @@ inline std::vector<std::set<NumberType>> generate_RR(graph sub_graph, unsigned l
             if (flag)
             {
                 NumberType buffer[3];
-                if (std::is_same<NumberType, long>::value)
+                if constexpr (std::is_same<NumberType, long>::value)
                 {
                     // using num type = long
                     MPI_Recv(buffer, 3, MPI_LONG, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);
                 }
-                else if (std::is_same<NumberType, int>::value)
+                else if constexpr  (std::is_same<NumberType, int>::value)
                 {
                     // using num type = int
                     MPI_Recv(buffer, 3, MPI_INT, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);
@@ -295,7 +295,7 @@ inline std::vector<std::set<NumberType>> generate_RR(graph sub_graph, unsigned l
 
                     if (DEBUG_MODE)
                     {
-                        printf("[DEBUG] Receiver: sender %d is done [%ld]\n", status.MPI_SOURCE, buffer[0]);
+                        printf("[DEBUG] Receiver: sender %d is done [%d]\n", status.MPI_SOURCE, buffer[0]);
                     }
                 }
                 else
@@ -304,7 +304,7 @@ inline std::vector<std::set<NumberType>> generate_RR(graph sub_graph, unsigned l
                     next_frontier.push(data);
                     if (DEBUG_MODE)
                     {
-                        printf("[%d] Receiver got from %d: id=%ld, num=%ld, level=%ld\n",
+                        printf("[%d] Receiver got from %d: id=%d, num=%d, level=%d\n",
                                myrank, status.MPI_SOURCE, data.node_id, data.walk_id, data.level);
                     }
                 }

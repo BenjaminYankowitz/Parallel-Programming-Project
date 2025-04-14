@@ -49,13 +49,7 @@ inline std::vector<std::vector<EdgeType>> readFile(const char* fileName){
     const MPI_Offset groupSize=fileSize/world_size;
     const MPI_Offset startOffset = groupSize*world_rank;
     constexpr MPI_Offset overlap = 50;
-    const MPI_Offset charsToRead = [&]{
-        if(world_rank+1==world_size){
-            return fileSize-startOffset;
-        } else {
-            return groupSize+overlap;
-        }
-    }();   
+    const MPI_Offset charsToRead = std::min(groupSize+overlap,fileSize-startOffset);
     std::vector<char> buffer(charsToRead);
     MPI_Status status;
     MPI_File_read_at(fh,startOffset,buffer.data(),charsToRead,MPI_CHAR,&status);
@@ -83,7 +77,9 @@ inline std::vector<std::vector<EdgeType>> readFile(const char* fileName){
         }
         return std::string_view();
     };
+    if(world_rank!=0){
     getNextNewLine();
+    }
     std::vector<std::pair<int,std::vector<EdgeType>>> readData;
     for(std::string_view line = getNextNewLine();line.size()!=0; line = getNextNewLine()){
         if(line[0]=='#'){
@@ -112,14 +108,19 @@ inline std::vector<std::vector<EdgeType>> readFile(const char* fileName){
     std::vector<int> startVals(world_size,-1);
     startVals[world_rank] = 0;
     std::vector<std::vector<std::vector<EdgeType>>> splitValues(world_size);
-    for(std::pair<int,std::vector<EdgeType>>& line : readData){
+    for(const std::pair<int,std::vector<EdgeType>>& line : readData){
         int owner = line.first%world_size;
         int index = line.first/world_size;
         if(startVals[owner]==-1){
             startVals[owner] = index;
         }
-        if(index<startVals[owner]){
-            std::cerr << "bad\n";
+        startVals[owner] = std::min(index,startVals[owner]);
+    }
+    for(std::pair<int,std::vector<EdgeType>>& line : readData){
+        int owner = line.first%world_size;
+        int index = line.first/world_size;
+        if(index<startVals[owner] || startVals[owner]==-1){
+            std::cerr << "bad value in file read\n";
             exit(1);
         }
         std::size_t modIndex = index - startVals[owner];

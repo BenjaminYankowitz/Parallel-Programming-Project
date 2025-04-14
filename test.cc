@@ -4,7 +4,6 @@
 #include "generateRR.h"
 #include "parsefile.h"
 #include <mpi.h>
-#include <stdio.h>
 #include <iostream>
 
 void populate_graph(graph &mygraph, 
@@ -67,27 +66,23 @@ int main(int argc, char** argv) {
     // mygraph.nodes.push_back(3 * world_size + rank);
 
     populate_graph(mygraph,
-                    5,
-                    3,
-                    2,
-                    world_size,
-                    rank
+                    "../edges.txt"
     );
 
     std::cout << "Rank " << rank << " of " << world_size << " have graph of: ";
-    for (int i = 0; i < mygraph.size(); i++)
-    {
-        std::cout << id_local_to_global(i, world_size, rank) << " ";
-    }
-    std::cout << "\n";
-    std::cout << "with adjacency matrix\n";
-    for (const auto& row : mygraph.adj_vector) {
-        for (const auto& elem : row) {
-            std::cout << elem << " ";
-        }
-        std::cout << std::endl;
-    }
-    generate_RR(mygraph, 2, rank, world_size, true);
+    // for (int i = 0; i < mygraph.size(); i++)
+    // {
+    //     std::cout << id_local_to_global(i, world_size, rank) << " ";
+    // }
+    // std::cout << "\n";
+    // std::cout << "with adjacency matrix\n";
+    // for (const auto& row : mygraph.adj_vector) {
+    //     for (const auto& elem : row) {
+    //         std::cout << elem << " ";
+    //     }
+    //     std::cout << std::endl;
+    // }
+    // generate_RR(mygraph, 2, rank, world_size, true);
 
     MPI_Finalize();
     return 0;
