@@ -14,10 +14,10 @@ void populate_graph_by_file(graph &mygraph, const char* fileName)
 }
 
 // TODO: import actual selectSeed
-std::vector<std::set<NumberType>> selectSeed (std::vector<std::set<NumberType>> RRset)
-{
-    std::set<NumberType>
-}
+// std::vector<std::set<NumberType>> selectSeed (std::vector<std::set<NumberType>> RRset)
+// {
+//     std::set<NumberType>
+// }
 
 int main(int argc, char** argv) {
 
@@ -62,6 +62,14 @@ int main(int argc, char** argv) {
     unsigned long num_sample = 2;
     std::vector<std::set<NumberType>> RRset;
     RRset = generate_RR(mygraph, num_sample, rank, world_size, DEBUG_MODE);
+    
+
+    // not sure if we need to invert the RR set
+    std::vector<std::set<NumberType>> emplicitRR;
+    emplicitRR = invertNodeWalks(RRset, num_sample * world_size);
+
+    std::vector<std::unordered_set<int>> combined_RR;
+    combined_RR = allrank_combineRR(emplicitRR, rank, world_size);
 
 
     MPI_Finalize();
