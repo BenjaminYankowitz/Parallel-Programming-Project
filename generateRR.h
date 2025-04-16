@@ -110,6 +110,7 @@ inline void select_random_nodes(const std::vector<int> &nodes, unsigned long num
 // max_size = number of nodes in subgraph
 inline void select_random_nodes(unsigned long max_size, unsigned long num_sample, std::queue<frontier_tuple> &frontier, int myrank, int world_size)
 {
+    NumberType walk_id_offset = myrank * world_size;
     for (NumberType i = 0; i < num_sample; i++)
     {
         // randomly pick the vector index n times
@@ -118,7 +119,7 @@ inline void select_random_nodes(unsigned long max_size, unsigned long num_sample
 
         // printf("got x value = %d", x);
 
-        frontier_tuple new_tuple = {static_cast<NumberType>(x * world_size + myrank), i, 0};
+        frontier_tuple new_tuple = {static_cast<NumberType>(x * world_size + myrank), i + walk_id_offset, 0};
         frontier.push(new_tuple);
     }
 }
