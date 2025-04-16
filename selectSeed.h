@@ -1,72 +1,138 @@
-#include <mpi.h> 
-#include <vector> 
-#include <set> 
-#include <algorithm> 
+#include <mpi.h>
+#include <vector>
+#include <set>
+#include <algorithm>
 #include <iostream>
 
+#include "EdgeInfo.h"
 
-std::vector<int> selectSeed2D(std::vector<std::set<long>> R, int k, int N, int myrank, int world_size) 
-{ 
+typedef EdgeType::IntType NumberType;
+
+void add_count(std::vector<NumberType> &local_count, NumberType node_index, int myrank, int world_size)
+{
+	// local_count is N x N/p matrix
+	// N is total number of node in whole graph, p is number of rank
+
+	// check owner
+	int destination = node_index % world_size;
+	if (destination == myrank)
+	{
+		// this rank own info on this node
+		local_count[node_index]++;
+	}
+	else
+	{
+		// send to others
+		static_assert(std::is_same<NumberType, long>::value || std::is_same<NumberType, int>::value);
+		if (std::is_same<NumberType, long>::value)
+		{
+			// using num type = long
+			MPI_Send(&node_index, 1, MPI_LONG, destination, 0, MPI_COMM_WORLD); // using tag = 0
+		}
+		else if (std::is_same<NumberType, int>::value)
+		{
+			// using num type = int
+			MPI_Send(&node_index, 1, MPI_INT, destination, 0, MPI_COMM_WORLD);
+		}
+		else
+		{
+			std::cout << "NumberType is not a long or int\n";
+			exit(-1);
+		}
+	}
+}
+
+void add_occurance(std::vector<std::vector<int>> &local_C, NumberType row_index, NumberType col_index, int myrank, int world_size)
+{
+	// check owner
+	int destination = row_index % world_size;
+	if (destination == myrank)
+	{
+		// this rank own info on this row
+		local_C[row_index][col_index]++;
+	}
+	else
+	{
+		// send to others
+		NumberType buffer[2] = {row_index, col_index};
+		static_assert(std::is_same<NumberType, long>::value || std::is_same<NumberType, int>::value);
+		if (std::is_same<NumberType, long>::value)
+		{
+			// using num type = long
+			MPI_Send(buffer, 2, MPI_LONG, destination, 0, MPI_COMM_WORLD); // using tag = 0
+		}
+		else if (std::is_same<NumberType, int>::value)
+		{
+			// using num type = int
+			MPI_Send(buffer, 2, MPI_INT, destination, 0, MPI_COMM_WORLD);
+		}
+		else
+		{
+			std::cout << "NumberType is not a long or int\n";
+			exit(-1);
+		}
+	}
+}
+
+std::vector<NumberType> selectSeed2D(std::vector<std::set<NumberType>> R, int k, NumberType num_node, int myrank, int world_size)
+{
 	std::vector<int> S; // Output set
-    S.reserve(k);
-	std::vector<int> count(N, 0); // Count array
-	std::vector<std::vector<int>> C(N, std::vector<int>(N, 0)); // Co-occurrence matrix
-	 
+	S.reserve(k);
+	std::vector<NumberType> count(num_node, 0);												// Count array
+	std::vector<std::vector<NumberType>> C(num_node, std::vector<NumberType>(num_node, 0)); // Co-occurrence matrix
+
 	// Preprocessing step
-	for (int i = 0; i < N; i++) 
+	size_t R_size = R.size();
+	for (int i = 0; i < R_size; i++)
 	{
 		// A single RRR set
-		std::set<long> T = R[i];
-		
-	    // Build matrix 
-		std::vector<int> T_nodes(T.begin(), T.end());
-		for (int j = 0; j < T_nodes.size(); j++) 
+		std::set<NumberType> &T = R[i]; // reference
+
+		// Build matrix
+		std::vector<NumberType> T_nodes(T.begin(), T.end()); // all number in set
+		for (int j = 0; j < T_nodes.size(); j++)
 		{
 			// Count nodes in current RRR set
-			if (node < N) 
-			    count[node] += 1; // serial for now - change later
-			
-			for (int l = j; l < T_nodes.size(); l++) 
+			add_count(count, T_nodes[j], myrank, world_size);
+
+			for (int l = j; l < T_nodes.size(); l++)
 			{
-			    int a = T_nodes[j];
-			    int b = T_nodes[l];
-			    if (a < N && b < N) 
-			    {
-			    	// Increment node pair co-occurences in current set
-			        C[a][b] += 1; // serial for now - change later
-			        if (a != b)
-			            C[b][a] += 1; 
-			    }
+				int a = T_nodes[j];
+				int b = T_nodes[l];
+
+				// Increment node pair co-occurences in current set
+				add_occurance(C, T_nodes[j], T_nodes[l], myrank, world_size);
+				if (a != b)
+					add_occurance(C, T_nodes[j], T_nodes[l], myrank, world_size);
 			}
 		}
 	}
 
 	// mpi barrier here
 
-	// Seed Selection 
-	int y_idx = -1; // Index of node with highest count
-    int y_count = -1; // Count of most occurring node
-    int y_node = -1; // Most occurring node 
-	for (int i = 0; i < k; i++) 
+	// Seed Selection
+	int y_idx = -1;	  // Index of node with highest count
+	int y_count = -1; // Count of most occurring node
+	int y_node = -1;  // Most occurring node
+	for (int i = 0; i < k; i++)
 	{
 		// Get most occurring node
-        for (int j = 0; j < N; j++) 
-        {
-            if (count[j] > y_count) 
-            {
-                y_count = count[j];
-                y_idx = j;
-            }
-        }
-        y_node = R[y_idx];
-        count[y_idx] = 0;
-        S.push_back(y_node);
+		for (int j = 0; j < N; j++)
+		{
+			if (count[j] > y_count)
+			{
+				y_count = count[j];
+				y_idx = j;
+			}
+		}
+		y_node = R[y_idx];
+		count[y_idx] = 0;
+		S.push_back(y_node);
 
-        // Update counts for every node i
-        for (int i = 0; i < N; i++) 
-            count[i] = std::max(0, count[i] - C[y][i]);
-    }
-	
+		// Update counts for every node i
+		for (int i = 0; i < N; i++)
+			count[i] = std::max(0, count[i] - C[y][i]);
+	}
 
 	return S;
 }
