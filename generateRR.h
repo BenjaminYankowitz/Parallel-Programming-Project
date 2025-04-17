@@ -1,12 +1,16 @@
+#ifndef GENERATERR_H
+#define GENERATERR_H
+
 #include <mpi.h>
-#include <set>
+#include <algorithm>
+#include <iostream>
 #include <list>
 #include <queue>
-#include <vector>
-#include <algorithm>
 #include <random>
+#include <set>
+#include <unordered_set>
+#include <vector>
 #include "rand_gen.h"
-#include <iostream>
 #include "EdgeInfo.h"
 
 // typedef long NumberType;
@@ -47,7 +51,7 @@ inline NumberType id_global_to_local(NumberType node_id, int world_size, int myr
 inline void MPI_send_frontier_raw(NumberType node_id, NumberType walk_id, NumberType level, int dest, int tag)
 {
     NumberType buffer[3] = {node_id, walk_id, level};
-    static_assert(std::is_same<NumberType, long>::value||std::is_same<NumberType, int>::value);
+    static_assert(std::is_same<NumberType, long>::value || std::is_same<NumberType, int>::value);
     if (std::is_same<NumberType, long>::value)
     {
         // using num type = long
@@ -279,7 +283,7 @@ inline std::vector<std::set<NumberType>> generate_RR(graph sub_graph, unsigned l
                     // using num type = long
                     MPI_Recv(buffer, 3, MPI_LONG, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);
                 }
-                else if constexpr  (std::is_same<NumberType, int>::value)
+                else if constexpr (std::is_same<NumberType, int>::value)
                 {
                     // using num type = int
                     MPI_Recv(buffer, 3, MPI_INT, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);
@@ -342,3 +346,85 @@ inline std::vector<std::set<NumberType>> generate_RR(graph sub_graph, unsigned l
     }
     return RR;
 }
+
+inline std::vector<std::set<NumberType>> invertNodeWalks(const std::vector<std::set<NumberType>> &implicitRRset, NumberType num_total_sample)
+{
+    std::vector<std::set<NumberType>> walk_nodes(num_total_sample); // each element i-th is set of nodes walk_id i-th has visited
+
+    // Step 3: Fill walk_nodes
+    for (int node = 0; node < implicitRRset.size(); ++node)
+    {
+        for (NumberType walk_id : implicitRRset[node])
+        {
+            walk_nodes[walk_id].insert(node);
+        }
+    }
+
+    return walk_nodes;
+}
+
+// warning: assume data type as INT
+inline std::vector<std::unordered_set<int>> allrank_combineRR(const std::vector<std::set<NumberType>> &local_explicitRR, int myrank, int world_size)
+{
+    // Convert local unordered_set data to a flat int vector
+    std::vector<NumberType> send_data;
+    for (NumberType walk_id = 0; walk_id < local_explicitRR.size(); ++walk_id)
+    {
+        for (NumberType node : local_explicitRR[walk_id])
+        {
+            send_data.push_back(walk_id);
+            send_data.push_back(node);
+        }
+    }
+
+    int local_size = send_data.size();
+
+    // Gather sizes
+    std::vector<int> recv_sizes;
+    if (myrank == 0)
+        recv_sizes.resize(world_size);
+    MPI_Gather(&local_size, 1, MPI_INT, recv_sizes.data(), 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    // Gather data
+    std::vector<int> displs, recv_data;
+    if (myrank == 0)
+    {
+        displs.resize(world_size);
+        int total_size = 0;
+        for (int i = 0; i < world_size; ++i)
+        {
+            displs[i] = total_size;
+            total_size += recv_sizes[i];
+        }
+        recv_data.resize(total_size);
+    }
+
+    MPI_Gatherv(send_data.data(), local_size, MPI_INT,
+                recv_data.data(), recv_sizes.data(), displs.data(), MPI_INT,
+                0, MPI_COMM_WORLD);
+
+    // Reconstruct explicitRR_global (on rank 0)
+    std::vector<std::unordered_set<int>> explicitRR_global;
+    if (myrank == 0)
+    {
+        for (size_t i = 0; i < recv_data.size(); i += 2)
+        {
+            int walk_id = recv_data[i];
+            int node = recv_data[i + 1];
+            if (walk_id >= explicitRR_global.size())
+            {
+                explicitRR_global.resize(walk_id + 1);
+            }
+            explicitRR_global[walk_id].insert(node);
+        }
+    }
+
+    return explicitRR_global;
+}
+
+
+
+
+
+
+#endif
