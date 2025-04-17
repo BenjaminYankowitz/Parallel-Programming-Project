@@ -50,9 +50,10 @@ inline std::vector<std::vector<EdgeType>> readFile(const char* fileName){
     const MPI_Offset startOffset = groupSize*world_rank;
     constexpr MPI_Offset overlap = 50;
     const MPI_Offset charsToRead = std::min(groupSize+overlap,fileSize-startOffset);
-    std::vector<char> buffer(charsToRead);
+    std::vector<char> buffer(charsToRead+1);
     MPI_Status status;
     MPI_File_read_at(fh,startOffset,buffer.data(),charsToRead,MPI_CHAR,&status);
+    buffer.back()=0;
     int count;
     MPI_Get_count(&status,MPI_CHAR,&count);
     if(count!=charsToRead){
@@ -96,7 +97,7 @@ inline std::vector<std::vector<EdgeType>> readFile(const char* fileName){
         std::from_chars(line.data(),line.data()+tabP1,from);
         std::from_chars(line.data()+tabP1+1,line.data()+tabP2,to);
         if(tabP2!=line.size()){
-            std::from_chars(line.data()+tabP2+1,line.data()+line.size(),weight);
+            weight = std::strtod(line.data()+tabP2+1,nullptr);
         }
         if(!readData.empty()&&readData.back().first==from){
             readData.back().second.push_back({to,weight});
