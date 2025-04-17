@@ -364,7 +364,7 @@ inline std::vector<std::set<NumberType>> invertNodeWalks(const std::vector<std::
 }
 
 // warning: assume data type as INT
-inline std::vector<std::unordered_set<int>> allrank_combineRR(const std::vector<std::set<NumberType>> &local_explicitRR, int myrank, int world_size)
+inline std::vector<std::unordered_set<int>> allrank_combineRR(const std::vector<std::set<NumberType>> &local_explicitRR, int myrank, int world_size, NumberType& num_node)
 {
     // Convert local unordered_set data to a flat int vector
     std::vector<NumberType> send_data;
@@ -405,6 +405,7 @@ inline std::vector<std::unordered_set<int>> allrank_combineRR(const std::vector<
 
     // Reconstruct explicitRR_global (on rank 0)
     std::vector<std::unordered_set<int>> explicitRR_global;
+    std::unordered_set<int> unique_nodes;
     if (myrank == 0)
     {
         for (size_t i = 0; i < recv_data.size(); i += 2)
@@ -416,15 +417,91 @@ inline std::vector<std::unordered_set<int>> allrank_combineRR(const std::vector<
                 explicitRR_global.resize(walk_id + 1);
             }
             explicitRR_global[walk_id].insert(node);
+
+            unique_nodes.insert(node);
         }
     }
+
+    num_node = unique_nodes.size();
 
     return explicitRR_global;
 }
 
+void distribute_walks_cyclic(
+    const std::vector<std::unordered_set<int>> *combined_RR, // Only non-null on rank 0
+    std::vector<std::unordered_set<int>> &explicitRR_distributed,
+    int myrank,
+    int world_size)
+{
 
+    if (myrank == 0)
+    {
+        // Build send buffers for each rank
+        std::vector<std::vector<int>> send_buffers(world_size);
 
+        for (int walk_id = 0; walk_id < combined_RR->size(); ++walk_id)
+        {
+            int target_rank = walk_id % world_size;
+            send_buffers[target_rank].push_back(walk_id);
+            for (int node : (*combined_RR)[walk_id])
+            {
+                send_buffers[target_rank].push_back(node);
+            }
+            send_buffers[target_rank].push_back(-1); // sentinel, a value that marks the end of a set
+        }
 
+        for (int dest_rank = 1; dest_rank < world_size; ++dest_rank)
+        {
+            int size = static_cast<int>(send_buffers[dest_rank].size());
+            // send the "size" of data we are about to send
+            MPI_Send(&size, 1, MPI_INT, dest_rank, 0, MPI_COMM_WORLD); 
+            // actually sending the data
+            MPI_Send(send_buffers[dest_rank].data(), size, MPI_INT, dest_rank, 1, MPI_COMM_WORLD);
+        }
 
+        // Rank 0 unpacks its own chunk
+        const auto &buf = send_buffers[0];
+        int i = 0;
+        while (i < buf.size())
+        {
+            int walk_id = buf[i++];
+            std::unordered_set<int> nodes;
+            while (i < buf.size() && buf[i] != -1)
+            {
+                nodes.insert(buf[i++]);
+            }
+            ++i; // skip sentinel
+            if (walk_id >= explicitRR_distributed.size())
+                explicitRR_distributed.resize(walk_id + 1);
+            explicitRR_distributed[walk_id] = std::move(nodes);
+        }
+    }
+    else
+    {
+        // receive how many data will be sent to me
+        int recv_size;
+        MPI_Status status;
+        MPI_Recv(&recv_size, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, &status);
+
+        // actually receiving data
+        std::vector<int> recv_buffer(recv_size);
+        MPI_Recv(recv_buffer.data(), recv_size, MPI_INT, 0, 1, MPI_COMM_WORLD, &status);
+
+        int i = 0;
+        while (i < recv_buffer.size())
+        {
+            int walk_id = recv_buffer[i++];
+            std::unordered_set<int> nodes;
+            while (i < recv_buffer.size() && recv_buffer[i] != -1)
+            {
+                nodes.insert(recv_buffer[i++]);
+            }
+            ++i; // skip sentinel, a special mark to say current set ends here
+            if (walk_id >= explicitRR_distributed.size())
+                explicitRR_distributed.resize(walk_id + 1);
+            explicitRR_distributed[walk_id] = std::move(nodes);
+        }
+    }
+}
 
 #endif

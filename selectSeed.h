@@ -110,15 +110,16 @@ std::vector<NumberType> selectSeed2D(std::vector<std::set<NumberType>> R, int k,
 
 	// mpi barrier here
 	MPI_Barrier(MPI_COMM_WORLD);
-	
+
 	// Seed Selection
 	int y_idx = -1;	  // Index of node with highest count
 	int y_count = -1; // Count of most occurring node
 	int y_node = -1;  // Most occurring node
 	for (int i = 0; i < k; i++)
 	{
+		// TODO: get global argmax of count vector
 		// Get most occurring node
-		for (int j = 0; j < N; j++)
+		for (int j = 0; j < num_node; j++)
 		{
 			if (count[j] > y_count)
 			{

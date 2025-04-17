@@ -2,6 +2,8 @@
 // run example:  mpirun --bind-to core -np 8 /gpfs/u/home/PCPF/PCPFrttn/scratch/proj/self/a.out
 #include "generateRR.h"
 #include "parsefile.h"
+#include "selectSeed.h"
+
 #include <mpi.h>
 #include <stdio.h>
 #include <iostream>
@@ -69,8 +71,16 @@ int main(int argc, char** argv) {
     emplicitRR = invertNodeWalks(RRset, num_sample * world_size);
 
     std::vector<std::unordered_set<int>> combined_RR;
-    combined_RR = allrank_combineRR(emplicitRR, rank, world_size);
+    NumberType num_node;
+    combined_RR = allrank_combineRR(emplicitRR, rank, world_size, num_node);
 
+    std::vector<std::unordered_set<int>> explicitRR_distributed;
+    distribute_walks_cyclic(&combined_RR, explicitRR_distributed, rank, world_size);
+
+    std::vector<NumberType> k_influential;
+    int k = 5;
+
+    k_influential = selectSeed2D(explicitRR_distributed, k, num_node, rank, world_size)
 
     MPI_Finalize();
     return 0;
