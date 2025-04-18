@@ -12,7 +12,7 @@ int main(int argc, char **argv)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    MPI_Datatype maxloc_type = create_maxloc_type();
+    MPI_Datatype maxloc_type = create_MPI_2NUM();
     MPI_Op maxloc_op;
     MPI_Op_create(&maxloc_reduce, /*commute=*/1, &maxloc_op);
 

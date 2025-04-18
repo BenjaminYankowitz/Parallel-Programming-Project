@@ -184,6 +184,6 @@ std::vector<NumberType> selectSeed2D(std::vector<std::unordered_set<NumberType>>
 	}
 
 	MPI_Op_free(&maxloc_op);
-	MPI_Type_free(&mpi2long_type);
-	return S;
+	MPI_Type_free(&mpi2num_type);
+	return selected_nodes;
 }

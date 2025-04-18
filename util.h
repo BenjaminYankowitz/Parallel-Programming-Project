@@ -34,7 +34,7 @@ struct MaxLoc
     NumberType node;
 };
 
-MPI_Datatype create_MPI_2LONG()
+MPI_Datatype create_MPI_2NUM()
 {
     MPI_Datatype type;
     MaxLoc temp;
