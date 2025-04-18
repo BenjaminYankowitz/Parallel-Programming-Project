@@ -6,10 +6,7 @@
 #include "EdgeInfo.h"
 typedef EdgeType::IntType NumberType;
 
-
 #include <mpi.h>
-
-
 
 template <typename T>
 MPI_Datatype get_mpi_type();
@@ -30,8 +27,6 @@ MPI_Datatype get_mpi_type<size_t>()
     return MPI_UNSIGNED_LONG;
 }
 
-
-
 //////////////// util used in selectSeed //////////////////////
 
 // function to buffer collection of message to be sent in bigger batch
@@ -45,7 +40,7 @@ void add_count_batch(NumberType node_index,
     if (destination == myrank)
     {
         local_count[node_index]++;
-        return; 
+        return;
     }
     count_buffers[destination].push_back(node_index);
 }
@@ -57,90 +52,110 @@ void add_occurance_batch(NumberType row_index, NumberType col_index,
                          std::unordered_map<int, std::vector<NumberType>> &cooccur_buffers,
                          std::vector<std::vector<NumberType>> local_C)
 {
-    int destination = row_index % world_size;
+    int destination = col_index % world_size;
     if (destination == myrank)
     {
         // process locally
         local_C[row_index][col_index]++;
-        return; 
+        return;
     }
     cooccur_buffers[destination].push_back(row_index);
     cooccur_buffers[destination].push_back(col_index);
 }
 
-
-void flush_count_messages(std::unordered_map<int, std::vector<NumberType>>& count_buffers,
+void flush_count_messages(std::unordered_map<int, std::vector<NumberType>> &count_buffers,
                           MPI_Datatype mpi_type)
 {
-    for (auto& [dest, buffer] : count_buffers) {
+    for (auto &[dest, buffer] : count_buffers)
+    {
         MPI_Send(buffer.data(), buffer.size(), mpi_type, dest, 0, MPI_COMM_WORLD);
     }
-    count_buffers.clear();
+
+    // Send DONE message to each rank ≠ myrank
+    NumberType sentinel = static_cast<NumberType>(-1);
+    for (int rank = 0; rank < world_size; ++rank)
+    {
+        if (rank != myrank)
+        {
+            MPI_Send(&sentinel, 1, mpi_type, rank, 99, MPI_COMM_WORLD); // tag 99 = DONE
+        }
+    }
 }
 
-
-void flush_occurance_messages(std::unordered_map<int, std::vector<NumberType>>& cooccur_buffers,
+void flush_occurance_messages(std::unordered_map<int, std::vector<NumberType>> &cooccur_buffers,
                               MPI_Datatype mpi_type)
 {
-    for (auto& [dest, buffer] : cooccur_buffers) {
+    for (auto &[dest, buffer] : cooccur_buffers)
+    {
         MPI_Send(buffer.data(), buffer.size(), mpi_type, dest, 1, MPI_COMM_WORLD);
     }
-    cooccur_buffers.clear();
-}
 
-void receive_count_messages(std::vector<NumberType>& local_count, int myrank, MPI_Datatype mpi_type)
-{
-    MPI_Status status;
-    while (true) {
-        NumberType buffer[1024];
-        int flag;
-        MPI_Iprobe(MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &flag, &status);
-        if (!flag) break;
-
-        int count;
-        MPI_Get_count(&status, mpi_type, &count);
-        MPI_Recv(buffer, count, mpi_type, status.MPI_SOURCE, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-
-        for (int i = 0; i < count; ++i) {
-            local_count[buffer[i]]++;
+    // Send sentinel (-1, -1) to all other ranks
+    NumberType sentinel[2] = {static_cast<NumberType>(-1), static_cast<NumberType>(-1)};
+    for (int rank = 0; rank < world_size; ++rank)
+    {
+        if (rank != myrank)
+        {
+            MPI_Send(sentinel, 2, mpi_type, rank, 98, MPI_COMM_WORLD); // tag 98 = DONE
         }
     }
 }
 
-void receive_occurance_messages(std::vector<std::vector<int>>& local_C, int myrank, MPI_Datatype mpi_type)
+void receive_count_messages(std::vector<NumberType> &local_count, int myrank, MPI_Datatype mpi_type)
 {
     MPI_Status status;
-    while (true) {
-        NumberType buffer[1024];
-        int flag;
-        MPI_Iprobe(MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, &flag, &status);
-        if (!flag) break;
+    NumberType node;
+    int done_count = 0;
 
-        int count;
-        MPI_Get_count(&status, mpi_type, &count);
-        MPI_Recv(buffer, count, mpi_type, status.MPI_SOURCE, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    // need to keep receiving until all rank are done with their transmission
+    while (done_count < world_size - 1)
+    {
+        MPI_Recv(&node, 1, mpi_type, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 
-        for (int i = 0; i < count; i += 2) {
-            NumberType a = buffer[i];
-            NumberType b = buffer[i + 1];
-            local_C[a][b]++;
+        if (status.MPI_TAG == 99)
+        {
+            done_count++;
+        }
+        else
+        {
+            int local_index = node / world_size;
+            if (local_index >= 0 && local_index < local_count.size())
+            {
+                local_count[local_index]++;
+            }
         }
     }
 }
 
+void receive_occurance_messages(std::vector<std::vector<int>> &local_C, int myrank, MPI_Datatype mpi_type)
+{
+    MPI_Status status;
+    NumberType buffer[2];
+    int done_count = 0;
 
+    while (done_count < world_size - 1)
+    {
+        MPI_Recv(buffer, 2, mpi_type, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 
+        if (status.MPI_TAG == 98)
+        {
+            done_count++;
+        }
+        else
+        {
+            NumberType row = buffer[0];
+            NumberType col = buffer[1];
+            int local_col = col / world_size;
 
-
-
-
-
-
-
-
+            if (local_col >= 0 && local_col < local_C[0].size())
+            {
+                local_C[row][local_col]++;
+            }
+        }
+    }
+}
 
 #endif
-
 
 // example usage
 // MPI_Datatype mpi_type = get_mpi_type<NumberType>();
