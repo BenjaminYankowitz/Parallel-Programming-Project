@@ -27,6 +27,50 @@ MPI_Datatype get_mpi_type<unsigned long>() { return MPI_UNSIGNED_LONG; }
 //     return MPI_UNSIGNED_LONG;
 // }
 
+//////////////// define new MPI_DATATYPE//////////////////////
+struct MaxLoc
+{
+    NumberType value;
+    NumberType node;
+};
+
+MPI_Datatype create_MPI_2LONG()
+{
+    MPI_Datatype type;
+    MaxLoc temp;
+    int blocklengths[2] = {1, 1};
+
+    // Use your existing helper to deduce MPI type
+    MPI_Datatype mpi_num_type = get_mpi_type<NumberType>();
+    MPI_Datatype types[2] = {mpi_num_type, mpi_num_type};
+    MPI_Aint displacement[2];
+
+    MPI_Aint base;
+    MPI_Get_address(&temp, &base);
+    MPI_Get_address(&temp.value, &displacement[0]);
+    MPI_Get_address(&temp.node, &displacement[1]);
+
+    displacement[0] -= base;
+    displacement[1] -= base;
+
+    MPI_Type_create_struct(2, blocklengths, displacement, types, &type);
+    MPI_Type_commit(&type);
+    return type;
+}
+
+void maxloc_reduce(void *in, void *inout, int *len, MPI_Datatype *datatype)
+{
+    MaxLoc *in_vals = static_cast<MaxLoc *>(in);
+    MaxLoc *inout_vals = static_cast<MaxLoc *>(inout);
+    for (int i = 0; i < *len; ++i)
+    {
+        if (in_vals[i].value > inout_vals[i].value)
+        {
+            inout_vals[i] = in_vals[i];
+        }
+    }
+}
+
 //////////////// util used in selectSeed //////////////////////
 
 // function to buffer collection of message to be sent in bigger batch
@@ -153,6 +197,68 @@ void receive_occurance_messages(std::vector<std::vector<NumberType>> &local_C, i
             }
         }
     }
+}
+
+// NumberType find_global_argmax(const std::vector<NumberType> &local_count,
+//                               int myrank, int world_size)
+// {
+//     NumberType local_max_val = -1;
+//     NumberType local_max_node = -1;
+
+//     // finding local argmax
+//     for (int i = 0; i < local_count.size(); ++i)
+//     {
+//         if (local_count[i] > local_max_val)
+//         {
+//             local_max_val = local_count[i];
+//             local_max_node = i * world_size + myrank;
+//         }
+//     }
+
+//     // structure to be sent for collective comparison
+//     struct
+//     {
+//         NumberType value;
+//         NumberType node;
+//     } local = {local_max_val, local_max_node}, global;
+
+//     MPI_Datatype mpi_2type;
+//     if constexpr (std::is_same<NumberType, int>::value)
+//     {
+//         mpi_2type = MPI_2INT;
+//     }
+//     else if constexpr (std::is_same<NumberType, long>::value)
+//     {
+//         mpi_2type = MPI_2LONG;
+//     }
+//     else
+//     {
+//         static_assert(std::is_same<NumberType, int>::value || std::is_same<NumberType, long>::value,
+//                       "NumberType must be int or long");
+//     }
+
+//     MPI_Allreduce(&local, &global, 1, mpi_2type, MPI_MAXLOC, MPI_COMM_WORLD);
+
+//     return global.node;
+// }
+
+NumberType find_global_argmax(const std::vector<NumberType> &local_count, int myrank, int world_size,
+                              MPI_Datatype maxloc_type, MPI_Op maxloc_op)
+{
+    MaxLoc local = {-1, -1};
+
+    for (size_t i = 0; i < local_count.size(); ++i)
+    {
+        if (local_count[i] > local.value)
+        {
+            local.value = local_count[i];
+            local.node = static_cast<NumberType>(i * world_size + myrank);
+        }
+    }
+
+    MaxLoc global;
+    MPI_Allreduce(&local, &global, 1, maxloc_type, maxloc_op, MPI_COMM_WORLD);
+    return global.node;
 }
 
 #endif
