@@ -77,12 +77,13 @@ typedef EdgeType::IntType NumberType;
 // }
 
 
-std::vector<NumberType> selectSeed2D(std::vector<std::set<NumberType>> R, int k, NumberType num_node, int myrank, int world_size)
+std::vector<NumberType> selectSeed2D(std::vector<std::unordered_set<NumberType>> R, int k, NumberType num_node, int myrank, int world_size)
 {
-	std::vector<int> S; // Output set
+	std::vector<NumberType> S; // Output set
 	S.reserve(k);
 	std::vector<NumberType> count(num_node, 0);												// Count array
-	std::vector<std::vector<NumberType>> C(num_node, std::vector<NumberType>(num_node, 0)); // Co-occurrence matrix
+	// std::vector<std::vector<NumberType>> C(num_node, std::vector<NumberType>(num_node, 0)); // Co-occurrence matrix
+	std::vector<std::vector<NumberType>> local_C(num_node, std::vector<NumberType>(num_node / world_size));
 
 	std::unordered_map<int, std::vector<NumberType>> count_buffers;
 	std::unordered_map<int, std::vector<NumberType>> cooccur_buffers;
@@ -92,7 +93,7 @@ std::vector<NumberType> selectSeed2D(std::vector<std::set<NumberType>> R, int k,
 	for (int i = 0; i < R_size; i++)
 	{
 		// A single RRR set
-		std::set<NumberType> &T = R[i]; // reference
+		std::unordered_set<NumberType> &T = R[i]; // reference
 
 		// Build matrix
 		std::vector<NumberType> T_nodes(T.begin(), T.end()); // all number in set
@@ -111,9 +112,9 @@ std::vector<NumberType> selectSeed2D(std::vector<std::set<NumberType>> R, int k,
 
 				// Increment node pair co-occurences in current set
 				// add_occurance(C, T_nodes[j], T_nodes[l], myrank, world_size);
-				add_occurance_batch(T_nodes[j], T_nodes[l], myrank, world_size,	cooccur_buffers, C);
+				add_occurance_batch(T_nodes[j], T_nodes[l], myrank, world_size,	cooccur_buffers, local_C);
 				if (a != b)
-				add_occurance_batch(T_nodes[l], T_nodes[j], myrank, world_size,	cooccur_buffers, C);
+				add_occurance_batch(T_nodes[l], T_nodes[j], myrank, world_size,	cooccur_buffers, local_C);
 					// add_occurance(C, T_nodes[l], T_nodes[j], myrank, world_size);
 			}
 		}
@@ -121,39 +122,39 @@ std::vector<NumberType> selectSeed2D(std::vector<std::set<NumberType>> R, int k,
 
 	// mpi barrier here
 	MPI_Barrier(MPI_COMM_WORLD);
-	flush_count_messages(count_buffers, get_mpi_type<NumberType>());
-	flush_occurance_messages(cooccur_buffers, get_mpi_type<NumberType>());
+	flush_count_messages(count_buffers, myrank, world_size, get_mpi_type<NumberType>());
+	flush_occurance_messages(cooccur_buffers, myrank, world_size, get_mpi_type<NumberType>());
 
 
 	// now receive updates
-	receive_count_messages(count, myrank, get_mpi_type<NumberType>());
-	receive_occurance_messages(C, myrank, get_mpi_type<NumberType>());
+	receive_count_messages(count, myrank, world_size, get_mpi_type<NumberType>());
+	receive_occurance_messages(local_C, myrank, world_size, get_mpi_type<NumberType>());
 
 
-	// Seed Selection
-	int y_idx = -1;	  // Index of node with highest count
-	int y_count = -1; // Count of most occurring node
-	int y_node = -1;  // Most occurring node
-	for (int i = 0; i < k; i++)
-	{
-		// TODO: get global argmax of count vector
-		// Get most occurring node
-		for (int j = 0; j < num_node; j++)
-		{
-			if (count[j] > y_count)
-			{
-				y_count = count[j];
-				y_idx = j;
-			}
-		}
-		y_node = R[y_idx];
-		count[y_idx] = 0;
-		S.push_back(y_node);
+	// // Seed Selection
+	// int y_idx = -1;	  // Index of node with highest count
+	// int y_count = -1; // Count of most occurring node
+	// int y_node = -1;  // Most occurring node
+	// for (int i = 0; i < k; i++)
+	// {
+	// 	// TODO: get global argmax of count vector
+	// 	// Get most occurring node
+	// 	for (int j = 0; j < num_node; j++)
+	// 	{
+	// 		if (count[j] > y_count)
+	// 		{
+	// 			y_count = count[j];
+	// 			y_idx = j;
+	// 		}
+	// 	}
+	// 	y_node = R[y_idx];
+	// 	count[y_idx] = 0;
+	// 	S.push_back(y_node);
 
-		// Update counts for every node i
-		for (int i = 0; i < N; i++)
-			count[i] = std::max(0, count[i] - C[y][i]);
-	}
+	// 	// Update counts for every node i
+	// 	for (int i = 0; i < N; i++)
+	// 		count[i] = std::max(0, count[i] - local_C[y][i]);
+	// }
 
 	return S;
 }

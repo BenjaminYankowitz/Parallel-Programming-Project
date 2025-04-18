@@ -20,12 +20,12 @@ MPI_Datatype get_mpi_type<long>() { return MPI_LONG; }
 template <>
 MPI_Datatype get_mpi_type<unsigned long>() { return MPI_UNSIGNED_LONG; }
 
-template <>
-MPI_Datatype get_mpi_type<size_t>()
-{
-    static_assert(sizeof(size_t) == sizeof(unsigned long), "Handle size_t mapping carefully!");
-    return MPI_UNSIGNED_LONG;
-}
+// template <>
+// MPI_Datatype get_mpi_type<size_t>()
+// {
+//     static_assert(sizeof(size_t) == sizeof(unsigned long), "Handle size_t mapping carefully!");
+//     return MPI_UNSIGNED_LONG;
+// }
 
 //////////////// util used in selectSeed //////////////////////
 
@@ -64,6 +64,7 @@ void add_occurance_batch(NumberType row_index, NumberType col_index,
 }
 
 void flush_count_messages(std::unordered_map<int, std::vector<NumberType>> &count_buffers,
+                          int myrank, int world_size,
                           MPI_Datatype mpi_type)
 {
     for (auto &[dest, buffer] : count_buffers)
@@ -83,7 +84,7 @@ void flush_count_messages(std::unordered_map<int, std::vector<NumberType>> &coun
 }
 
 void flush_occurance_messages(std::unordered_map<int, std::vector<NumberType>> &cooccur_buffers,
-                              MPI_Datatype mpi_type)
+                              int myrank, int world_size, MPI_Datatype mpi_type)
 {
     for (auto &[dest, buffer] : cooccur_buffers)
     {
@@ -101,7 +102,7 @@ void flush_occurance_messages(std::unordered_map<int, std::vector<NumberType>> &
     }
 }
 
-void receive_count_messages(std::vector<NumberType> &local_count, int myrank, MPI_Datatype mpi_type)
+void receive_count_messages(std::vector<NumberType> &local_count, int myrank, int world_size, MPI_Datatype mpi_type)
 {
     MPI_Status status;
     NumberType node;
@@ -126,8 +127,7 @@ void receive_count_messages(std::vector<NumberType> &local_count, int myrank, MP
         }
     }
 }
-
-void receive_occurance_messages(std::vector<std::vector<int>> &local_C, int myrank, MPI_Datatype mpi_type)
+void receive_occurance_messages(std::vector<std::vector<NumberType>> &local_C, int myrank, int world_size, MPI_Datatype mpi_type)
 {
     MPI_Status status;
     NumberType buffer[2];

@@ -80,7 +80,7 @@ int main(int argc, char** argv) {
     std::vector<NumberType> k_influential;
     int k = 5;
 
-    k_influential = selectSeed2D(explicitRR_distributed, k, num_node, rank, world_size)
+    k_influential = selectSeed2D(explicitRR_distributed, k, num_node, rank, world_size);
 
     MPI_Finalize();
     return 0;
