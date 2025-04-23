@@ -10,7 +10,7 @@
 
 bool DEBUG_MODE = false;
 
-void populate_graph_by_file(graph &mygraph, const char* fileName)
+void populate_graph_by_file(graph &mygraph, const char *fileName)
 {
     mygraph.adj_vector = readFile(fileName);
 }
@@ -50,24 +50,26 @@ int main(int argc, char** argv) {
         }
         std::cout << "\n";
         std::cout << "with adjacency matrix\n";
-        for (const auto& row : mygraph.adj_vector) {
-            for (const auto& elem : row) {
+        for (const auto &row : mygraph.adj_vector)
+        {
+            for (const auto &elem : row)
+            {
                 std::cout << elem << " ";
             }
             std::cout << std::endl;
         }
     }
-	
-	NumberType global_max_id = find_global_max_node_id(
+
+    NumberType global_max_id = find_global_max_node_id(
         mygraph.size(),
         world_size,
         rank,
         id_local_to_global);
-	
     unsigned long num_sample = (global_max_id + 1) / world_size; // num walks
     std::vector<std::set<NumberType>> RRset;
     ticks startGenRRTimer = clock_now();
     RRset = generate_RR(mygraph, num_sample, rank, world_size, DEBUG_MODE);
+
     ticks endGenRRTimer = clock_now();
 	
 	ticks startSetupSSTimer = clock_now();
@@ -82,6 +84,10 @@ int main(int argc, char** argv) {
     combined_RR = allrank_combineRR(emplicitRR, rank, world_size, num_node);
 
 	if (DEBUG_MODE) { std::cout << "distributing RRR set\n"; }
+    if (DEBUG_MODE)
+    {
+        std::cout << "distributing RRR set\n";
+    }
     std::vector<std::unordered_set<int>> explicitRR_distributed;
     distribute_walks_cyclic(&combined_RR, explicitRR_distributed, rank, world_size);
 	ticks endSetupSSTimer = clock_now();
@@ -94,7 +100,19 @@ int main(int argc, char** argv) {
     k_influential = selectSeed2D(explicitRR_distributed, k, global_max_id + 1, rank, world_size, DEBUG_MODE);
 	ticks endSelectSeedTimer = clock_now();
 	ticks endOverallTimer = clock_now();
-	
+
+    if (DEBUG_MODE)
+    {
+        if (rank == 0)
+        {
+            std::cout << "Most influential node: ";
+            for (int i = 0; i < k_influential.size(); i++)
+            {
+                std::cout << k_influential[i] << " ";
+            }
+            std::cout << "\n";
+        }
+    }
     MPI_Finalize();
     if (rank == 0)
     {
