@@ -5,7 +5,6 @@
 #include "selectSeed.h"
 
 #include <mpi.h>
-#include <stdio.h>
 #include <iostream>
 
 bool DEBUG_MODE = true;

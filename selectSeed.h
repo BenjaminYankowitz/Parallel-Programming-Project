@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <iostream>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "EdgeInfo.h"
 #include "util.h"
@@ -11,7 +12,7 @@
 typedef EdgeType::IntType NumberType;
 
 
-std::vector<NumberType> selectSeed2D(std::vector<std::unordered_set<NumberType>> R, int k, NumberType num_node, int myrank, int world_size)
+inline std::vector<NumberType> selectSeed2D(std::vector<std::unordered_set<NumberType>> R, int k, NumberType num_node, int myrank, int world_size)
 {
 	std::vector<NumberType> selected_nodes; // Output set
 	selected_nodes.reserve(k);
