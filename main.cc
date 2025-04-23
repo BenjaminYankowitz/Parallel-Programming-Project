@@ -3,6 +3,7 @@
 #include "generateRR.h"
 #include "parsefile.h"
 #include "selectSeed.h"
+#include "clockcycle.h"
 
 #include <mpi.h>
 #include <stdio.h>
@@ -14,7 +15,6 @@ void populate_graph_by_file(graph &mygraph, const char* fileName)
 {
     mygraph.adj_vector = readFile(fileName);
 }
-
 
 int main(int argc, char** argv) {
 
@@ -36,8 +36,12 @@ int main(int argc, char** argv) {
     graph mygraph;
 
     const char* filename = argv[1];
+    
+    ticks startOverallTimer = clock_now();
+    
+    ticks startIOTimer = clock_now();
     populate_graph_by_file(mygraph, filename);
-
+	ticks endIOTimer = clock_now();
 
     if (DEBUG_MODE) {
 
@@ -56,11 +60,16 @@ int main(int argc, char** argv) {
         }
     }
 
-    unsigned long num_sample = 2;
+	
+    unsigned long num_sample = 100; // num walks
     std::vector<std::set<NumberType>> RRset;
+    ticks startGenRRTimer = clock_now();
     RRset = generate_RR(mygraph, num_sample, rank, world_size, DEBUG_MODE);
-    
+    ticks endGenRRTimer = clock_now();
 
+	//std::cout << "TESTING-------------------------------------------------------------------\n";
+	
+	ticks startSetupSSTimer = clock_now();
     // not sure if we need to invert the RR set
     std::vector<std::set<NumberType>> emplicitRR;
     emplicitRR = invertNodeWalks(RRset, num_sample * world_size);
@@ -71,12 +80,32 @@ int main(int argc, char** argv) {
 
     std::vector<std::unordered_set<int>> explicitRR_distributed;
     distribute_walks_cyclic(&combined_RR, explicitRR_distributed, rank, world_size);
-
+	ticks endSetupSSTimer = clock_now();
+	//std::cout << "TESTING2-------------------------------------------------------------------\n";
     std::vector<NumberType> k_influential;
     int k = 5;
-
+	
+	//std::cout << "TESTING3-------------------------------------------------------------------\n";
+	ticks startSelectSeedTimer = clock_now();
     k_influential = selectSeed2D(explicitRR_distributed, k, num_node, rank, world_size);
+	ticks endSelectSeedTimer = clock_now();
 
+	//std::cout << "TESTING4 (NOT WORKING)---------------------------------------------------------\n";
+	ticks endOverallTimer = clock_now();
+	
     MPI_Finalize();
+    
+    std::cout << "Elapsed time (Reading in data) = " << getElapsedSeconds(startIOTimer, endIOTimer) << " seconds\n";
+	std::cout << "Elapsed time (Generating RRR sets) = " << getElapsedSeconds(startGenRRTimer, endGenRRTimer) << " seconds\n";
+	std::cout << "Elapsed time (Setting up RRR sets for seed selection) = " << getElapsedSeconds(startSetupSSTimer, endSetupSSTimer) << " seconds\n";
+	std::cout << "Elapsed time (Selecting influential seeds) = " << getElapsedSeconds(startSelectSeedTimer, endSelectSeedTimer) << " seconds\n";
+	std::cout << "Elapsed time (Overall time taken) = " << getElapsedSeconds(startOverallTimer, endOverallTimer) << " seconds\n";
+		
+	//std::cout << "Elapsed time (Reading in data) = " << getElapsedSeconds(startIOTimer, endIOTimer) << " seconds\n";
+		
+
+	//printf("Total samples = %lld\n", total_samples);
+	//printf("Approximate cycles = %.0f cycles\n", cycles);
+    
     return 0;
 }
