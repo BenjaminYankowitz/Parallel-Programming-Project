@@ -95,17 +95,10 @@ int main(int argc, char** argv) {
 	ticks endSelectSeedTimer = clock_now();
 	ticks endOverallTimer = clock_now();
 	
-	if (DEBUG_MODE)
-    {
-        if (rank == 0)
-        {
-            
-        }
-    }
-	
     MPI_Finalize();
     if (rank == 0)
     {
+    	//std::cerr << "Total walks (sample size) = " << num_sample << " walks\n";		
 		std::cerr << "Elapsed time (Reading in data) = " 
 		<< getCycles(startIOTimer, endIOTimer) << " ticks, " 
 		<< getElapsedSeconds(startIOTimer, endIOTimer) << " seconds\n";
@@ -121,13 +114,14 @@ int main(int argc, char** argv) {
 		std::cerr << "Elapsed time (Overall time taken) = " 
 		<< getCycles(startOverallTimer, endOverallTimer) << " ticks, " 
 		<< getElapsedSeconds(startOverallTimer, endOverallTimer) << " seconds\n";
-		
+		/*
 		std::cerr << "Most influential node: ";
         for (int i = 0; i < k_influential.size(); i++)
         {
             std::cerr << k_influential[i] << " ";
         }
         std::cerr << "\n";	
+        */
 		//std::cout << "Elapsed time (Reading in data) = " << getElapsedSeconds(startIOTimer, endIOTimer) << " seconds\n";
 			
 

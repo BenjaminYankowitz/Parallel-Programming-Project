@@ -19,4 +19,7 @@ mpirun --bind-to core -np 8 /gpfs/u/home/PCPF/PCPFngst/scratch/a.out edges_large
 mpirun --bind-to core -np 12 /gpfs/u/home/PCPF/PCPFngst/scratch/a.out edges_large.txt > 12strong.txt
 
 
+for P in 1 2 4 6 8 12; do
+  mpirun --bind-to core -np $P /gpfs/u/home/PCPF/PCPFngst/scratch/a.out edges_large.txt > ${P}strong.txt
+done
 
