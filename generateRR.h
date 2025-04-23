@@ -114,7 +114,7 @@ inline void select_random_nodes(const std::vector<int> &nodes, unsigned long num
 // max_size = number of nodes in subgraph
 inline void select_random_nodes(unsigned long max_size, unsigned long num_sample, std::queue<frontier_tuple> &frontier, int myrank, int world_size)
 {
-    NumberType walk_id_offset = myrank * world_size;
+
     for (NumberType i = 0; i < num_sample; i++)
     {
         // randomly pick the vector index n times
@@ -123,7 +123,7 @@ inline void select_random_nodes(unsigned long max_size, unsigned long num_sample
 
         // printf("got x value = %d", x);
 
-        frontier_tuple new_tuple = {static_cast<NumberType>(x * world_size + myrank), i + walk_id_offset, 0};
+        frontier_tuple new_tuple = {static_cast<NumberType>(x * world_size + myrank), i, 0};
         frontier.push(new_tuple);
     }
 }
@@ -356,6 +356,8 @@ inline std::vector<std::set<NumberType>> invertNodeWalks(const std::vector<std::
     {
         for (NumberType walk_id : implicitRRset[node])
         {
+            std::cout << "walk_id " << walk_id << "\n";
+
             walk_nodes[walk_id].insert(node);
         }
     }
@@ -372,7 +374,9 @@ inline std::vector<std::unordered_set<int>> allrank_combineRR(const std::vector<
     {
         for (NumberType node : local_explicitRR[walk_id])
         {
-            send_data.push_back(walk_id);
+            // convert local walk_id to global one 
+            NumberType walk_id_offset = myrank * world_size;
+            send_data.push_back(walk_id + walk_id_offset);
             send_data.push_back(node);
         }
     }

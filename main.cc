@@ -62,19 +62,31 @@ int main(int argc, char** argv) {
     
 
     // not sure if we need to invert the RR set
+    if (DEBUG_MODE) {
+        std::cout << "inverting RRR set\n";
+    }
     std::vector<std::set<NumberType>> emplicitRR;
     emplicitRR = invertNodeWalks(RRset, num_sample * world_size);
 
+    if (DEBUG_MODE) {
+        std::cout << "collectively combining RRR set\n";
+    }
     std::vector<std::unordered_set<int>> combined_RR;
     NumberType num_node;
     combined_RR = allrank_combineRR(emplicitRR, rank, world_size, num_node);
 
+    if (DEBUG_MODE) {
+        std::cout << "distributing RRR set\n";
+    }
     std::vector<std::unordered_set<int>> explicitRR_distributed;
     distribute_walks_cyclic(&combined_RR, explicitRR_distributed, rank, world_size);
 
     std::vector<NumberType> k_influential;
     int k = 5;
 
+    if (DEBUG_MODE) {
+        std::cout << "computing selectSeed\n";
+    }
     k_influential = selectSeed2D(explicitRR_distributed, k, num_node, rank, world_size);
 
     MPI_Finalize();
