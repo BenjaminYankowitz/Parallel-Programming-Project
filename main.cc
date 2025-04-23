@@ -87,7 +87,18 @@ int main(int argc, char** argv) {
         std::cout << "computing selectSeed\n";
     }
     k_influential = selectSeed2D(explicitRR_distributed, k, num_node, rank, world_size, DEBUG_MODE);
-
+    
+    if (DEBUG_MODE) {
+        if (rank == 0)
+        {
+            std::cout << "Most influential node: ";
+            for (int i = 0; i < k_influential.size(); i++)
+            {
+                std::cout << k_influential[i] << " ";
+            }
+            std::cout << "\n";
+        }
+    }
     MPI_Finalize();
     return 0;
 }

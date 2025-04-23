@@ -103,10 +103,10 @@ inline void add_occurance_batch(NumberType row_index, NumberType col_index,
     {
         // process locally
         NumberType local_index = col_index / world_size;
-        std::cout << "local_C added " << row_index << "," << local_index << "\n";
-        std::cout << local_C[row_index][local_index] << "\ntest\n";
+        // std::cout << "local_C added " << row_index << "," << local_index << "\n";
+        // std::cout << local_C[row_index][local_index] << "\ntest\n";
         local_C[row_index][local_index]++;
-        std::cout << "local_C added done\n";
+        // std::cout << "local_C added done\n";
         return;
     }
     cooccur_buffers[destination].push_back(row_index);

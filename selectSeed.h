@@ -12,7 +12,7 @@
 typedef EdgeType::IntType NumberType;
 
 
-inline std::vector<NumberType> selectSeed2D(std::vector<std::unordered_set<NumberType>> R, int k, NumberType num_node, int myrank, int world_size)
+inline std::vector<NumberType> selectSeed2D(std::vector<std::unordered_set<NumberType>> R, int k, NumberType num_node, int myrank, int world_size, bool DEBUG_MODE)
 {
 	std::vector<NumberType> selected_nodes; // Output set
 	selected_nodes.reserve(k);
