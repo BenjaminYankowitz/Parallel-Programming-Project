@@ -351,13 +351,11 @@ inline std::vector<std::set<NumberType>> invertNodeWalks(const std::vector<std::
 {
     std::vector<std::set<NumberType>> walk_nodes(num_total_sample); // each element i-th is set of nodes walk_id i-th has visited
 
-    // Step 3: Fill walk_nodes
+    // Fill walk_nodes
     for (int node = 0; node < implicitRRset.size(); ++node)
     {
         for (NumberType walk_id : implicitRRset[node])
         {
-            std::cout << "walk_id " << walk_id << "\n";
-
             walk_nodes[walk_id].insert(node);
         }
     }
@@ -378,7 +376,6 @@ inline std::vector<std::unordered_set<int>> allrank_combineRR(const std::vector<
             NumberType walk_id_offset = myrank * world_size;
             send_data.push_back(walk_id + walk_id_offset);
             NumberType node_id = id_local_to_global(node, world_size, myrank);
-            std::cout << "Rank [" << myrank << "]" << " sending node " << node_id << "\n";
             send_data.push_back(node_id);
         }
     }

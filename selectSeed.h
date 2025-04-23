@@ -39,18 +39,13 @@ inline std::vector<NumberType> selectSeed2D(std::vector<std::unordered_set<Numbe
 		{
 			// Count nodes in current RRR set
 			int destination = T_nodes[j] % world_size;
-
-			// add_count(count, T_nodes[j], myrank, world_size);
-			std::cout << "Rank [" << myrank << "]" << " SelectSeed2D: adding count[" << T_nodes[j] << "]\n";
 			add_count_batch(T_nodes[j] , myrank, world_size, count_buffers, local_count);
-			
 			
 			for (int l = j; l < T_nodes.size(); l++)
 			{
 				NumberType a = T_nodes[j];
 				NumberType b = T_nodes[l];
 				
-				std::cout << "Rank [" << myrank << "]" << " SelectSeed2D: adding C[" << a << "][" << b << "]\n";
 				// Increment node pair co-occurences in current set
 				add_occurance_batch(T_nodes[j], T_nodes[l], myrank, world_size, cooccur_buffers, local_C);
 				if (a != b)
