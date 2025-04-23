@@ -63,19 +63,28 @@ inline std::vector<NumberType> selectSeed2D(std::vector<std::unordered_set<Numbe
 	MPI_Barrier(MPI_COMM_WORLD);
 	if (DEBUG_MODE)
 	{
-		std::cout << "Rank [" << myrank << "]" << " SelectSeed2D: message sending phase\n";
+		std::cout << "Rank [" << myrank << "]" << " SelectSeed2D: count message sending phase\n";
 	}
-	
 	flush_count_messages(count_buffers, myrank, world_size, get_mpi_type<NumberType>());
+	if (DEBUG_MODE)
+	{
+		std::cout << "Rank [" << myrank << "]" << " SelectSeed2D: count message receiving phase\n";
+	}
 	receive_count_messages(local_count, myrank, world_size, get_mpi_type<NumberType>());
 	
 	MPI_Barrier(MPI_COMM_WORLD);
+
+
+	// now receive updates
 	if (DEBUG_MODE)
 	{
-		std::cout << "Rank [" << myrank << "]" << " SelectSeed2D: message receiving phase\n";
+		std::cout << "Rank [" << myrank << "]" << " SelectSeed2D: C matrix message sending phase\n";
 	}
-	// now receive updates
 	flush_occurance_messages(cooccur_buffers, myrank, world_size, get_mpi_type<NumberType>());
+	if (DEBUG_MODE)
+	{
+		std::cout << "Rank [" << myrank << "]" << " SelectSeed2D: C matrix message receiving phase\n";
+	}
 	receive_occurance_messages(local_C, myrank, world_size, get_mpi_type<NumberType>());
 
 	// Seed Selection

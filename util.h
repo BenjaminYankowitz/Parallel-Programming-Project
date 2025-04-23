@@ -72,14 +72,39 @@ inline void maxloc_reduce(void *in, void *inout, int *len, MPI_Datatype *datatyp
     }
 }
 
+NumberType find_global_max_node_id(int local_size,
+                                   int world_size,
+                                   int rank,
+                                   NumberType (*id_local_to_global)(NumberType, int, int))
+{
+    // 1. Compute local max
+    NumberType local_max = 0;
+    for (int local_idx = 0; local_idx < local_size; ++local_idx)
+    {
+        NumberType gid = id_local_to_global(local_idx, world_size, rank);
+        local_max = std::max(local_max, gid);
+    }
+
+    // 2. Reduce across all ranks
+    NumberType global_max;
+    MPI_Allreduce(&local_max,
+                  &global_max,
+                  1,
+                  get_mpi_type<NumberType>(),
+                  MPI_MAX,
+                  MPI_COMM_WORLD);
+
+    return global_max;
+}
+
 //////////////// util used in selectSeed //////////////////////
 
 // function to buffer collection of message to be sent in bigger batch
 inline void add_count_batch(NumberType node_index,
-                     int myrank,
-                     int world_size,
-                     std::unordered_map<int, std::vector<NumberType>> &count_buffers,
-                     std::vector<NumberType> &local_count)
+                            int myrank,
+                            int world_size,
+                            std::unordered_map<int, std::vector<NumberType>> &count_buffers,
+                            std::vector<NumberType> &local_count)
 {
     int destination = node_index % world_size;
     if (destination == myrank)
@@ -93,10 +118,10 @@ inline void add_count_batch(NumberType node_index,
 
 // function to buffer collection of message to be sent in bigger batch
 inline void add_occurance_batch(NumberType row_index, NumberType col_index,
-                         int myrank,
-                         int world_size,
-                         std::unordered_map<int, std::vector<NumberType>> &cooccur_buffers,
-                         std::vector<std::vector<NumberType>> &local_C)
+                                int myrank,
+                                int world_size,
+                                std::unordered_map<int, std::vector<NumberType>> &cooccur_buffers,
+                                std::vector<std::vector<NumberType>> &local_C)
 {
     int destination = col_index % world_size;
     if (destination == myrank)
@@ -114,8 +139,8 @@ inline void add_occurance_batch(NumberType row_index, NumberType col_index,
 }
 
 inline void flush_count_messages(std::unordered_map<int, std::vector<NumberType>> &count_buffers,
-                          int myrank, int world_size,
-                          MPI_Datatype mpi_type)
+                                 int myrank, int world_size,
+                                 MPI_Datatype mpi_type)
 {
     for (auto &[dest, buffer] : count_buffers)
     {
@@ -134,7 +159,7 @@ inline void flush_count_messages(std::unordered_map<int, std::vector<NumberType>
 }
 
 inline void flush_occurance_messages(std::unordered_map<int, std::vector<NumberType>> &cooccur_buffers,
-                              int myrank, int world_size, MPI_Datatype mpi_type)
+                                     int myrank, int world_size, MPI_Datatype mpi_type)
 {
     for (auto &[dest, buffer] : cooccur_buffers)
     {
@@ -206,7 +231,7 @@ inline void flush_occurance_messages(std::unordered_map<int, std::vector<NumberT
 // }
 
 inline void receive_count_messages(std::vector<NumberType> &local_count,
-                            int myrank, int world_size, MPI_Datatype mpi_type)
+                                   int myrank, int world_size, MPI_Datatype mpi_type)
 {
     MPI_Status status;
     int done_count = 0;
@@ -248,7 +273,7 @@ inline void receive_count_messages(std::vector<NumberType> &local_count,
 }
 
 inline void receive_occurance_messages(std::vector<std::vector<int>> &local_C,
-                                int myrank, int world_size, MPI_Datatype mpi_type)
+                                       int myrank, int world_size, MPI_Datatype mpi_type)
 {
     MPI_Status status;
     int done_count = 0;
@@ -288,7 +313,7 @@ inline void receive_occurance_messages(std::vector<std::vector<int>> &local_C,
 }
 
 inline NumberType find_global_argmax(const std::vector<NumberType> &local_count, int myrank, int world_size,
-                              MPI_Datatype maxloc_type, MPI_Op maxloc_op)
+                                     MPI_Datatype maxloc_type, MPI_Op maxloc_op)
 {
     MaxLoc local = {-1, -1};
 

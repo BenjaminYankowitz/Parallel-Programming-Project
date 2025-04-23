@@ -377,7 +377,9 @@ inline std::vector<std::unordered_set<int>> allrank_combineRR(const std::vector<
             // convert local walk_id to global one 
             NumberType walk_id_offset = myrank * world_size;
             send_data.push_back(walk_id + walk_id_offset);
-            send_data.push_back(node);
+            NumberType node_id = id_local_to_global(node, world_size, myrank);
+            std::cout << "Rank [" << myrank << "]" << " sending node " << node_id << "\n";
+            send_data.push_back(node_id);
         }
     }
 
@@ -424,8 +426,8 @@ inline std::vector<std::unordered_set<int>> allrank_combineRR(const std::vector<
 
             unique_nodes.insert(node);
         }
-        num_node = unique_nodes.size();
     }
+    num_node = unique_nodes.size();
 
     MPI_Bcast(&num_node, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
