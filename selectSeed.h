@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <iostream>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "EdgeInfo.h"
 #include "util.h"
@@ -11,16 +12,20 @@
 typedef EdgeType::IntType NumberType;
 
 
-std::vector<NumberType> selectSeed2D(std::vector<std::unordered_set<NumberType>> R, int k, NumberType num_node, int myrank, int world_size)
+inline std::vector<NumberType> selectSeed2D(std::vector<std::unordered_set<NumberType>> R, int k, NumberType num_node, int myrank, int world_size, bool DEBUG_MODE)
 {
 	std::vector<NumberType> selected_nodes; // Output set
 	selected_nodes.reserve(k);
 	std::vector<NumberType> local_count(num_node / world_size + 1, 0); // Count array
-	std::vector<std::vector<NumberType>> local_C(num_node, std::vector<NumberType>(num_node / world_size));
+	std::vector<std::vector<NumberType>> local_C(num_node, std::vector<NumberType>(num_node / world_size + 1));
 
 	std::unordered_map<int, std::vector<NumberType>> count_buffers;
 	std::unordered_map<int, std::vector<NumberType>> cooccur_buffers;
 
+	if (DEBUG_MODE)
+	{
+        std::cout << "Rank [" << myrank << "]" << " SelectSeed2D: preprocessing, num_node = " << num_node << "\n";
+	}
 	// Preprocessing step
 	size_t R_size = R.size();
 	for (int i = 0; i < R_size; i++)
@@ -34,15 +39,13 @@ std::vector<NumberType> selectSeed2D(std::vector<std::unordered_set<NumberType>>
 		{
 			// Count nodes in current RRR set
 			int destination = T_nodes[j] % world_size;
-
-			// add_count(count, T_nodes[j], myrank, world_size);
-			add_count_batch(T_nodes[j], myrank, world_size, count_buffers, local_count);
-
+			add_count_batch(T_nodes[j] , myrank, world_size, count_buffers, local_count);
+			
 			for (int l = j; l < T_nodes.size(); l++)
 			{
-				int a = T_nodes[j];
-				int b = T_nodes[l];
-
+				NumberType a = T_nodes[j];
+				NumberType b = T_nodes[l];
+				
 				// Increment node pair co-occurences in current set
 				add_occurance_batch(T_nodes[j], T_nodes[l], myrank, world_size, cooccur_buffers, local_C);
 				if (a != b)
@@ -50,14 +53,33 @@ std::vector<NumberType> selectSeed2D(std::vector<std::unordered_set<NumberType>>
 			}
 		}
 	}
-
+	
 	// mpi barrier here
 	MPI_Barrier(MPI_COMM_WORLD);
+	if (DEBUG_MODE)
+	{
+		std::cout << "Rank [" << myrank << "]" << " SelectSeed2D: count message sending phase\n";
+	}
 	flush_count_messages(count_buffers, myrank, world_size, get_mpi_type<NumberType>());
-	flush_occurance_messages(cooccur_buffers, myrank, world_size, get_mpi_type<NumberType>());
+	if (DEBUG_MODE)
+	{
+		std::cout << "Rank [" << myrank << "]" << " SelectSeed2D: count message receiving phase\n";
+	}
+	receive_count_messages(local_count, myrank, world_size, get_mpi_type<NumberType>());
+	
+	MPI_Barrier(MPI_COMM_WORLD);
+
 
 	// now receive updates
-	receive_count_messages(local_count, myrank, world_size, get_mpi_type<NumberType>());
+	if (DEBUG_MODE)
+	{
+		std::cout << "Rank [" << myrank << "]" << " SelectSeed2D: C matrix message sending phase\n";
+	}
+	flush_occurance_messages(cooccur_buffers, myrank, world_size, get_mpi_type<NumberType>());
+	if (DEBUG_MODE)
+	{
+		std::cout << "Rank [" << myrank << "]" << " SelectSeed2D: C matrix message receiving phase\n";
+	}
 	receive_occurance_messages(local_C, myrank, world_size, get_mpi_type<NumberType>());
 
 	// Seed Selection

@@ -1,12 +1,22 @@
 These are the commands I used to run the tests on GenRR and IO to get times
 module load xl_r spectrum-mpi 
-mpic++ -std=c++17 test.cc rand_gen.cc -o test_graph.outC
 
-mpirun --bind-to core -np 1 /gpfs/u/home/PCPF/PCPFngst/scratch/test_graph.out > 1strong.txt
-mpirun --bind-to core -np 2 /gpfs/u/home/PCPF/PCPFngst/scratch/test_graph.out > 2strong.txt
-mpirun --bind-to core -np 4 /gpfs/u/home/PCPF/PCPFngst/scratch/test_graph.out > 4strong.txt
-mpirun --bind-to core -np 6 /gpfs/u/home/PCPF/PCPFngst/scratch/test_graph.out > 6strong.txt
-mpirun --bind-to core -np 8 /gpfs/u/home/PCPF/PCPFngst/scratch/test_graph.out > 8strong.txt
-mpirun --bind-to core -np 12 /gpfs/u/home/PCPF/PCPFngst/scratch/test_graph.out > 12strong.txt
+g++ main.cc rand_gen.cc -I/opt/ibm/spectrum_mpi/include -pthread -L/opt/ibm/spectrum_mpi/lib -lmpiprofilesupport -lmpi_ibm -std=c++17 
+mpic++ -std=c++17 test.cc rand_gen.cc -o test_graph.out
+
+mpirun --bind-to core -np 1 /gpfs/u/home/PCPF/PCPFngst/scratch/a.out edges_huge.txt > 1strong.txt
+mpirun --bind-to core -np 2 /gpfs/u/home/PCPF/PCPFngst/scratch/a.out edges_huge.txt > 2strong.txt
+mpirun --bind-to core -np 4 /gpfs/u/home/PCPF/PCPFngst/scratch/a.out edges_huge.txt > 4strong.txt
+mpirun --bind-to core -np 6 /gpfs/u/home/PCPF/PCPFngst/scratch/a.out edges_huge.txt > 6strong.txt
+mpirun --bind-to core -np 8 /gpfs/u/home/PCPF/PCPFngst/scratch/a.out edges_huge.txt > 8strong.txt
+mpirun --bind-to core -np 12 /gpfs/u/home/PCPF/PCPFngst/scratch/a.out edges_huge.txt > 12strong.txt
+
+mpirun --bind-to core -np 1 /gpfs/u/home/PCPF/PCPFngst/scratch/a.out edges_large.txt > 1strong.txt
+mpirun --bind-to core -np 2 /gpfs/u/home/PCPF/PCPFngst/scratch/a.out edges_large.txt > 2strong.txt
+mpirun --bind-to core -np 4 /gpfs/u/home/PCPF/PCPFngst/scratch/a.out edges_large.txt > 4strong.txt
+mpirun --bind-to core -np 6 /gpfs/u/home/PCPF/PCPFngst/scratch/a.out edges_large.txt > 6strong.txt
+mpirun --bind-to core -np 8 /gpfs/u/home/PCPF/PCPFngst/scratch/a.out edges_large.txt > 8strong.txt
+mpirun --bind-to core -np 12 /gpfs/u/home/PCPF/PCPFngst/scratch/a.out edges_large.txt > 12strong.txt
+
 
 

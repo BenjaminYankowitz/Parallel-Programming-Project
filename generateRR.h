@@ -114,7 +114,7 @@ inline void select_random_nodes(const std::vector<int> &nodes, unsigned long num
 // max_size = number of nodes in subgraph
 inline void select_random_nodes(unsigned long max_size, unsigned long num_sample, std::queue<frontier_tuple> &frontier, int myrank, int world_size)
 {
-    NumberType walk_id_offset = myrank * world_size;
+
     for (NumberType i = 0; i < num_sample; i++)
     {
         // randomly pick the vector index n times
@@ -123,7 +123,7 @@ inline void select_random_nodes(unsigned long max_size, unsigned long num_sample
 
         // printf("got x value = %d", x);
 
-        frontier_tuple new_tuple = {static_cast<NumberType>(x * world_size + myrank), i + walk_id_offset, 0};
+        frontier_tuple new_tuple = {static_cast<NumberType>(x * world_size + myrank), i, 0};
         frontier.push(new_tuple);
     }
 }
@@ -351,7 +351,7 @@ inline std::vector<std::set<NumberType>> invertNodeWalks(const std::vector<std::
 {
     std::vector<std::set<NumberType>> walk_nodes(num_total_sample); // each element i-th is set of nodes walk_id i-th has visited
 
-    // Step 3: Fill walk_nodes
+    // Fill walk_nodes
     for (int node = 0; node < implicitRRset.size(); ++node)
     {
         for (NumberType walk_id : implicitRRset[node])
@@ -372,8 +372,11 @@ inline std::vector<std::unordered_set<int>> allrank_combineRR(const std::vector<
     {
         for (NumberType node : local_explicitRR[walk_id])
         {
-            send_data.push_back(walk_id);
-            send_data.push_back(node);
+            // convert local walk_id to global one 
+            NumberType walk_id_offset = myrank * world_size;
+            send_data.push_back(walk_id + walk_id_offset);
+            NumberType node_id = id_local_to_global(node, world_size, myrank);
+            send_data.push_back(node_id);
         }
     }
 
@@ -421,13 +424,16 @@ inline std::vector<std::unordered_set<int>> allrank_combineRR(const std::vector<
             unique_nodes.insert(node);
         }
     }
-
     num_node = unique_nodes.size();
+
+    MPI_Bcast(&num_node, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+
 
     return explicitRR_global;
 }
 
-void distribute_walks_cyclic(
+inline void distribute_walks_cyclic(
     const std::vector<std::unordered_set<int>> *combined_RR, // Only non-null on rank 0
     std::vector<std::unordered_set<int>> &explicitRR_distributed,
     int myrank,

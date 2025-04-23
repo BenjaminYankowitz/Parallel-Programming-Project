@@ -26,5 +26,10 @@ double getElapsedSeconds(ticks start, ticks end)
 	return (double)((end - start) / 1e9);
 }
 
+ticks getCycles(ticks start, ticks end)
+{
+	return (end - start);
+}
+
 #endif // CLOCKCYCLE_H
 

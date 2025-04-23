@@ -3,6 +3,7 @@
 #define UTIL_H
 
 #include <unordered_map>
+#include <vector>
 #include "EdgeInfo.h"
 typedef EdgeType::IntType NumberType;
 
@@ -12,13 +13,13 @@ template <typename T>
 MPI_Datatype get_mpi_type();
 
 template <>
-MPI_Datatype get_mpi_type<int>() { return MPI_INT; }
+inline MPI_Datatype get_mpi_type<int>() { return MPI_INT; }
 
 template <>
-MPI_Datatype get_mpi_type<long>() { return MPI_LONG; }
+inline MPI_Datatype get_mpi_type<long>() { return MPI_LONG; }
 
 template <>
-MPI_Datatype get_mpi_type<unsigned long>() { return MPI_UNSIGNED_LONG; }
+inline MPI_Datatype get_mpi_type<unsigned long>() { return MPI_UNSIGNED_LONG; }
 
 // template <>
 // MPI_Datatype get_mpi_type<size_t>()
@@ -27,6 +28,10 @@ MPI_Datatype get_mpi_type<unsigned long>() { return MPI_UNSIGNED_LONG; }
 //     return MPI_UNSIGNED_LONG;
 // }
 
+
+// example usage
+// MPI_Datatype mpi_type = get_mpi_type<NumberType>();
+
 //////////////// define new MPI_DATATYPE//////////////////////
 struct MaxLoc
 {
@@ -34,7 +39,7 @@ struct MaxLoc
     NumberType node;
 };
 
-MPI_Datatype create_MPI_2NUM()
+inline MPI_Datatype create_MPI_2NUM()
 {
     MPI_Datatype type;
     MaxLoc temp;
@@ -58,7 +63,7 @@ MPI_Datatype create_MPI_2NUM()
     return type;
 }
 
-void maxloc_reduce(void *in, void *inout, int *len, MPI_Datatype *datatype)
+inline void maxloc_reduce(void *in, void *inout, int *len, MPI_Datatype *datatype)
 {
     MaxLoc *in_vals = static_cast<MaxLoc *>(in);
     MaxLoc *inout_vals = static_cast<MaxLoc *>(inout);
@@ -71,45 +76,72 @@ void maxloc_reduce(void *in, void *inout, int *len, MPI_Datatype *datatype)
     }
 }
 
+NumberType find_global_max_node_id(int local_size,
+                                   int world_size,
+                                   int rank,
+                                   NumberType (*id_local_to_global)(NumberType, int, int))
+{
+    // 1. Compute local max
+    NumberType local_max = 0;
+    for (int local_idx = 0; local_idx < local_size; ++local_idx)
+    {
+        NumberType gid = id_local_to_global(local_idx, world_size, rank);
+        local_max = std::max(local_max, gid);
+    }
+
+    // 2. Reduce across all ranks
+    NumberType global_max;
+    MPI_Allreduce(&local_max,
+                  &global_max,
+                  1,
+                  get_mpi_type<NumberType>(),
+                  MPI_MAX,
+                  MPI_COMM_WORLD);
+
+    return global_max;
+}
+
 //////////////// util used in selectSeed //////////////////////
 
 // function to buffer collection of message to be sent in bigger batch
-void add_count_batch(NumberType node_index,
-                     int myrank,
-                     int world_size,
-                     std::unordered_map<int, std::vector<NumberType>> &count_buffers,
-                     std::vector<NumberType> &local_count)
+inline void add_count_batch(NumberType node_index,
+                            int myrank,
+                            int world_size,
+                            std::unordered_map<int, std::vector<NumberType>> &count_buffers,
+                            std::vector<NumberType> &local_count)
 {
     int destination = node_index % world_size;
     if (destination == myrank)
     {
-        local_count[node_index]++;
+        NumberType local_index = node_index / world_size;
+        local_count[local_index]++;
         return;
     }
     count_buffers[destination].push_back(node_index);
 }
 
 // function to buffer collection of message to be sent in bigger batch
-void add_occurance_batch(NumberType row_index, NumberType col_index,
-                         int myrank,
-                         int world_size,
-                         std::unordered_map<int, std::vector<NumberType>> &cooccur_buffers,
-                         std::vector<std::vector<NumberType>> local_C)
+inline void add_occurance_batch(NumberType row_index, NumberType col_index,
+                                int myrank,
+                                int world_size,
+                                std::unordered_map<int, std::vector<NumberType>> &cooccur_buffers,
+                                std::vector<std::vector<NumberType>> &local_C)
 {
     int destination = col_index % world_size;
     if (destination == myrank)
     {
         // process locally
-        local_C[row_index][col_index]++;
+        NumberType local_index = col_index / world_size;
+        local_C[row_index][local_index]++;
         return;
     }
     cooccur_buffers[destination].push_back(row_index);
     cooccur_buffers[destination].push_back(col_index);
 }
 
-void flush_count_messages(std::unordered_map<int, std::vector<NumberType>> &count_buffers,
-                          int myrank, int world_size,
-                          MPI_Datatype mpi_type)
+inline void flush_count_messages(std::unordered_map<int, std::vector<NumberType>> &count_buffers,
+                                 int myrank, int world_size,
+                                 MPI_Datatype mpi_type)
 {
     for (auto &[dest, buffer] : count_buffers)
     {
@@ -127,8 +159,8 @@ void flush_count_messages(std::unordered_map<int, std::vector<NumberType>> &coun
     }
 }
 
-void flush_occurance_messages(std::unordered_map<int, std::vector<NumberType>> &cooccur_buffers,
-                              int myrank, int world_size, MPI_Datatype mpi_type)
+inline void flush_occurance_messages(std::unordered_map<int, std::vector<NumberType>> &cooccur_buffers,
+                                     int myrank, int world_size, MPI_Datatype mpi_type)
 {
     for (auto &[dest, buffer] : cooccur_buffers)
     {
@@ -146,62 +178,90 @@ void flush_occurance_messages(std::unordered_map<int, std::vector<NumberType>> &
     }
 }
 
-void receive_count_messages(std::vector<NumberType> &local_count, int myrank, int world_size, MPI_Datatype mpi_type)
+inline void receive_count_messages(std::vector<NumberType> &local_count,
+                                   int myrank, int world_size, MPI_Datatype mpi_type)
 {
     MPI_Status status;
-    NumberType node;
-    int done_count = 0;
-
-    // need to keep receiving until all rank are done with their transmission
-    while (done_count < world_size - 1)
-    {
-        MPI_Recv(&node, 1, mpi_type, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-
-        if (status.MPI_TAG == 99)
-        {
-            done_count++;
-        }
-        else
-        {
-            int local_index = node / world_size;
-            if (local_index >= 0 && local_index < local_count.size())
-            {
-                local_count[local_index]++;
-            }
-        }
-    }
-}
-void receive_occurance_messages(std::vector<std::vector<NumberType>> &local_C, int myrank, int world_size, MPI_Datatype mpi_type)
-{
-    MPI_Status status;
-    NumberType buffer[2];
     int done_count = 0;
 
     while (done_count < world_size - 1)
     {
-        MPI_Recv(buffer, 2, mpi_type, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+        // Wait for any incoming message (either data or DONE)
+        MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
 
-        if (status.MPI_TAG == 98)
+        int tag = status.MPI_TAG;
+        if (tag == 99)
         {
+            // DONE message: exactly one element
+            NumberType sentinel;
+            MPI_Recv(&sentinel, 1, mpi_type, status.MPI_SOURCE, 99, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             done_count++;
         }
         else
         {
-            NumberType row = buffer[0];
-            NumberType col = buffer[1];
-            int local_col = col / world_size;
+            // Regular count message: determine length dynamically
+            int count;
+            MPI_Get_count(&status, mpi_type, &count);
+            std::vector<NumberType> buf(count);
 
-            if (local_col >= 0 && local_col < local_C[0].size())
+            MPI_Recv(buf.data(), count, mpi_type, status.MPI_SOURCE, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+            // Apply all received updates
+            for (int i = 0; i < count; ++i)
             {
-                local_C[row][local_col]++;
+                NumberType node = buf[i];
+                int local_idx = node / world_size;
+                if (local_idx >= 0 && local_idx < static_cast<int>(local_count.size()))
+                {
+                    local_count[local_idx]++;
+                }
             }
         }
     }
 }
 
+inline void receive_occurance_messages(std::vector<std::vector<int>> &local_C,
+                                       int myrank, int world_size, MPI_Datatype mpi_type)
+{
+    MPI_Status status;
+    int done_count = 0;
 
-NumberType find_global_argmax(const std::vector<NumberType> &local_count, int myrank, int world_size,
-                              MPI_Datatype maxloc_type, MPI_Op maxloc_op)
+    while (done_count < world_size - 1)
+    {
+        MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+        int tag = status.MPI_TAG;
+
+        if (tag == 98)
+        {
+            NumberType sentinel[2];
+            MPI_Recv(sentinel, 2, mpi_type, status.MPI_SOURCE, 98, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            done_count++;
+        }
+        else
+        {
+            int count;
+            MPI_Get_count(&status, mpi_type, &count);
+            std::vector<NumberType> buf(count);
+            MPI_Recv(buf.data(), count, mpi_type, status.MPI_SOURCE, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+            // buf holds [row0,col0,row1,col1,...]
+            for (int i = 0; i < count; i += 2)
+            {
+                NumberType row = buf[i];
+                NumberType col = buf[i + 1];
+                int local_col = col / world_size;
+                if (row >= 0 && row < local_C.size() &&
+                    local_col >= 0 && local_col < local_C[row].size())
+                {
+                    local_C[row][local_col]++;
+                }
+            }
+        }
+    }
+}
+
+inline NumberType find_global_argmax(const std::vector<NumberType> &local_count, int myrank, int world_size,
+                                     MPI_Datatype maxloc_type, MPI_Op maxloc_op)
 {
     MaxLoc local = {-1, -1};
 
@@ -221,5 +281,4 @@ NumberType find_global_argmax(const std::vector<NumberType> &local_count, int my
 
 #endif
 
-// example usage
-// MPI_Datatype mpi_type = get_mpi_type<NumberType>();
+
