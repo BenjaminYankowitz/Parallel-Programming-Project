@@ -3,6 +3,7 @@
 #define UTIL_H
 
 #include <unordered_map>
+#include <vector>
 #include "EdgeInfo.h"
 typedef EdgeType::IntType NumberType;
 
@@ -12,13 +13,13 @@ template <typename T>
 MPI_Datatype get_mpi_type();
 
 template <>
-MPI_Datatype get_mpi_type<int>() { return MPI_INT; }
+inline MPI_Datatype get_mpi_type<int>() { return MPI_INT; }
 
 template <>
-MPI_Datatype get_mpi_type<long>() { return MPI_LONG; }
+inline MPI_Datatype get_mpi_type<long>() { return MPI_LONG; }
 
 template <>
-MPI_Datatype get_mpi_type<unsigned long>() { return MPI_UNSIGNED_LONG; }
+inline MPI_Datatype get_mpi_type<unsigned long>() { return MPI_UNSIGNED_LONG; }
 
 // template <>
 // MPI_Datatype get_mpi_type<size_t>()
@@ -34,7 +35,7 @@ struct MaxLoc
     NumberType node;
 };
 
-MPI_Datatype create_MPI_2NUM()
+inline MPI_Datatype create_MPI_2NUM()
 {
     MPI_Datatype type;
     MaxLoc temp;
@@ -58,7 +59,7 @@ MPI_Datatype create_MPI_2NUM()
     return type;
 }
 
-void maxloc_reduce(void *in, void *inout, int *len, MPI_Datatype *datatype)
+inline void maxloc_reduce(void *in, void *inout, int *len, MPI_Datatype *datatype)
 {
     MaxLoc *in_vals = static_cast<MaxLoc *>(in);
     MaxLoc *inout_vals = static_cast<MaxLoc *>(inout);
@@ -74,7 +75,7 @@ void maxloc_reduce(void *in, void *inout, int *len, MPI_Datatype *datatype)
 //////////////// util used in selectSeed //////////////////////
 
 // function to buffer collection of message to be sent in bigger batch
-void add_count_batch(NumberType node_index,
+inline void add_count_batch(NumberType node_index,
                      int myrank,
                      int world_size,
                      std::unordered_map<int, std::vector<NumberType>> &count_buffers,
@@ -91,7 +92,7 @@ void add_count_batch(NumberType node_index,
 }
 
 // function to buffer collection of message to be sent in bigger batch
-void add_occurance_batch(NumberType row_index, NumberType col_index,
+inline void add_occurance_batch(NumberType row_index, NumberType col_index,
                          int myrank,
                          int world_size,
                          std::unordered_map<int, std::vector<NumberType>> &cooccur_buffers,
@@ -112,7 +113,7 @@ void add_occurance_batch(NumberType row_index, NumberType col_index,
     cooccur_buffers[destination].push_back(col_index);
 }
 
-void flush_count_messages(std::unordered_map<int, std::vector<NumberType>> &count_buffers,
+inline void flush_count_messages(std::unordered_map<int, std::vector<NumberType>> &count_buffers,
                           int myrank, int world_size,
                           MPI_Datatype mpi_type)
 {
@@ -132,7 +133,7 @@ void flush_count_messages(std::unordered_map<int, std::vector<NumberType>> &coun
     }
 }
 
-void flush_occurance_messages(std::unordered_map<int, std::vector<NumberType>> &cooccur_buffers,
+inline void flush_occurance_messages(std::unordered_map<int, std::vector<NumberType>> &cooccur_buffers,
                               int myrank, int world_size, MPI_Datatype mpi_type)
 {
     for (auto &[dest, buffer] : cooccur_buffers)
@@ -204,7 +205,7 @@ void flush_occurance_messages(std::unordered_map<int, std::vector<NumberType>> &
 //     }
 // }
 
-void receive_count_messages(std::vector<NumberType> &local_count,
+inline void receive_count_messages(std::vector<NumberType> &local_count,
                             int myrank, int world_size, MPI_Datatype mpi_type)
 {
     MPI_Status status;
@@ -246,7 +247,7 @@ void receive_count_messages(std::vector<NumberType> &local_count,
     }
 }
 
-void receive_occurance_messages(std::vector<std::vector<int>> &local_C,
+inline void receive_occurance_messages(std::vector<std::vector<int>> &local_C,
                                 int myrank, int world_size, MPI_Datatype mpi_type)
 {
     MPI_Status status;
@@ -286,7 +287,7 @@ void receive_occurance_messages(std::vector<std::vector<int>> &local_C,
     }
 }
 
-NumberType find_global_argmax(const std::vector<NumberType> &local_count, int myrank, int world_size,
+inline NumberType find_global_argmax(const std::vector<NumberType> &local_count, int myrank, int world_size,
                               MPI_Datatype maxloc_type, MPI_Op maxloc_op)
 {
     MaxLoc local = {-1, -1};

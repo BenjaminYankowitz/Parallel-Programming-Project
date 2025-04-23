@@ -1,7 +1,6 @@
 #include <mpi.h>
 #include <vector>
 #include <iostream>
-#include <type_traits>
 #include "util.h"
 
 int main(int argc, char **argv)
