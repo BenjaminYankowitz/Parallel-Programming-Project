@@ -424,9 +424,12 @@ inline std::vector<std::unordered_set<int>> allrank_combineRR(const std::vector<
 
             unique_nodes.insert(node);
         }
+        num_node = unique_nodes.size();
     }
 
-    num_node = unique_nodes.size();
+    MPI_Bcast(&num_node, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+
 
     return explicitRR_global;
 }

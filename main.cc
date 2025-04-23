@@ -87,7 +87,7 @@ int main(int argc, char** argv) {
     if (DEBUG_MODE) {
         std::cout << "computing selectSeed\n";
     }
-    k_influential = selectSeed2D(explicitRR_distributed, k, num_node, rank, world_size);
+    k_influential = selectSeed2D(explicitRR_distributed, k, num_node, rank, world_size, DEBUG_MODE);
 
     MPI_Finalize();
     return 0;
