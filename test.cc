@@ -3,6 +3,7 @@
 #include "EdgeInfo.h"
 #include "generateRR.h"
 #include "parsefile.h"
+#include "clockcycle.h"
 #include <mpi.h>
 #include <iostream>
 
@@ -73,7 +74,9 @@ int main(int argc, char** argv) {
                     rank
     );
     #else
-    populate_graph(mygraph,"../edges.txt");
+    ticks startIOTimer = clock_now();
+    populate_graph(mygraph,"edges_huge.txt");
+	ticks endIOTimer = clock_now();
     #endif
 
     std::cout << "Rank " << rank << " of " << world_size << " have graph of: ";
@@ -89,8 +92,16 @@ int main(int argc, char** argv) {
         }
         std::cout << std::endl;
     }
-    generate_RR(mygraph, 2, rank, world_size, true);
+    ticks startGenRRTimer = clock_now();
+    generate_RR(mygraph, 2, rank, world_size, false);
+    ticks endGenRRTimer = clock_now();
 
+	
     MPI_Finalize();
+    if (rank == 0)
+	{
+		std::cout << "Elapsed time (Reading in data) = " << getElapsedSeconds(startIOTimer, endIOTimer) << " seconds\n";
+		std::cout << "Elapsed time (Generating RRR sets) = " << getElapsedSeconds(startGenRRTimer, endGenRRTimer) << " seconds\n";
+	}
     return 0;
 }
