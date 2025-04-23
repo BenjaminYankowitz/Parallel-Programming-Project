@@ -434,7 +434,7 @@ inline std::vector<std::unordered_set<int>> allrank_combineRR(const std::vector<
     return explicitRR_global;
 }
 
-void distribute_walks_cyclic(
+inline void distribute_walks_cyclic(
     const std::vector<std::unordered_set<int>> *combined_RR, // Only non-null on rank 0
     std::vector<std::unordered_set<int>> &explicitRR_distributed,
     int myrank,
