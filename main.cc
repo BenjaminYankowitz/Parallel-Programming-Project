@@ -1,4 +1,4 @@
-// to compile: mpic++  -std=c++11 main.cc rand_gen.cc
+// to compile: mpic++  -std=c++17 main.cc rand_gen.cc
 // run example:  mpirun --bind-to core -np 8 /gpfs/u/home/PCPF/PCPFrttn/scratch/proj/self/a.out
 #include "generateRR.h"
 #include "parsefile.h"
@@ -15,11 +15,6 @@ void populate_graph_by_file(graph &mygraph, const char* fileName)
     mygraph.adj_vector = readFile(fileName);
 }
 
-// TODO: import actual selectSeed
-// std::vector<std::set<NumberType>> selectSeed (std::vector<std::set<NumberType>> RRset)
-// {
-//     std::set<NumberType>
-// }
 
 int main(int argc, char** argv) {
 

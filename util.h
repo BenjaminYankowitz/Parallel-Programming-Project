@@ -199,48 +199,6 @@ void receive_occurance_messages(std::vector<std::vector<NumberType>> &local_C, i
     }
 }
 
-// NumberType find_global_argmax(const std::vector<NumberType> &local_count,
-//                               int myrank, int world_size)
-// {
-//     NumberType local_max_val = -1;
-//     NumberType local_max_node = -1;
-
-//     // finding local argmax
-//     for (int i = 0; i < local_count.size(); ++i)
-//     {
-//         if (local_count[i] > local_max_val)
-//         {
-//             local_max_val = local_count[i];
-//             local_max_node = i * world_size + myrank;
-//         }
-//     }
-
-//     // structure to be sent for collective comparison
-//     struct
-//     {
-//         NumberType value;
-//         NumberType node;
-//     } local = {local_max_val, local_max_node}, global;
-
-//     MPI_Datatype mpi_2type;
-//     if constexpr (std::is_same<NumberType, int>::value)
-//     {
-//         mpi_2type = MPI_2INT;
-//     }
-//     else if constexpr (std::is_same<NumberType, long>::value)
-//     {
-//         mpi_2type = MPI_2LONG;
-//     }
-//     else
-//     {
-//         static_assert(std::is_same<NumberType, int>::value || std::is_same<NumberType, long>::value,
-//                       "NumberType must be int or long");
-//     }
-
-//     MPI_Allreduce(&local, &global, 1, mpi_2type, MPI_MAXLOC, MPI_COMM_WORLD);
-
-//     return global.node;
-// }
 
 NumberType find_global_argmax(const std::vector<NumberType> &local_count, int myrank, int world_size,
                               MPI_Datatype maxloc_type, MPI_Op maxloc_op)
