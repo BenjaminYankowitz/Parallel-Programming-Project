@@ -1,5 +1,0 @@
-// Here are the commands we use to run the program
-// feel free to replace ./edges_large.txt with any edges files you might want
-module load xl_r spectrum-mpi
-mpic++  -std=c++17 main.cc rand_gen.cc
-mpirun --bind-to core -np 8 /gpfs/u/home/PCPF/PCPFrttn/scratch/proj/self/a.out ./edges_large.txt
