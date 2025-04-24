@@ -166,8 +166,6 @@ inline std::vector<std::set<NumberType>> generate_RR(graph sub_graph, unsigned l
 
     NumberType current_level = 0;
     int all_finish = 0;
-    
-    std::cout << "3.5\n";
     while (all_finish == 0)
     {
         // not all processing has finished
