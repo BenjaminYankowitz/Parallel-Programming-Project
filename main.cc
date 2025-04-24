@@ -65,7 +65,11 @@ int main(int argc, char** argv) {
         world_size,
         rank,
         id_local_to_global);
+    #ifdef STRONG
     unsigned long num_sample = (global_max_id + 1) / world_size; // num walks
+    #else
+    unsigned long num_sample = (global_max_id + 1) / 12;
+    #endif
     std::vector<std::set<NumberType>> RRset;
     ticks startGenRRTimer = clock_now();
     RRset = generate_RR(mygraph, num_sample, rank, world_size, DEBUG_MODE);
