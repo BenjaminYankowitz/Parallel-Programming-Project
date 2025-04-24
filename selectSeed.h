@@ -14,6 +14,7 @@ typedef EdgeType::IntType NumberType;
 
 inline std::vector<NumberType> selectSeed2D(std::vector<std::unordered_set<NumberType>> R, int k, NumberType num_node, int myrank, int world_size, bool DEBUG_MODE)
 {
+    std::cout << "7\n";
 	std::vector<NumberType> selected_nodes; // Output set
 	selected_nodes.reserve(k);
 	std::vector<NumberType> local_count(num_node / world_size + 1, 0); // Count array
@@ -21,7 +22,7 @@ inline std::vector<NumberType> selectSeed2D(std::vector<std::unordered_set<Numbe
 
 	std::unordered_map<int, std::vector<NumberType>> count_buffers;
 	std::unordered_map<int, std::vector<NumberType>> cooccur_buffers;
-
+	std::vector<MPI_Request> qstr;
 	if (DEBUG_MODE)
 	{
         std::cout << "Rank [" << myrank << "]" << " SelectSeed2D: preprocessing, num_node = " << num_node << "\n";
@@ -30,6 +31,7 @@ inline std::vector<NumberType> selectSeed2D(std::vector<std::unordered_set<Numbe
 	size_t R_size = R.size();
 	for (int i = 0; i < R_size; i++)
 	{
+		std::cout << myrank << ' ' << i << '\n';
 		// A single RRR set
 		std::unordered_set<NumberType> &T = R[i]; // reference
 
@@ -60,7 +62,7 @@ inline std::vector<NumberType> selectSeed2D(std::vector<std::unordered_set<Numbe
 	{
 		std::cout << "Rank [" << myrank << "]" << " SelectSeed2D: count message sending phase\n";
 	}
-	flush_count_messages(count_buffers, myrank, world_size, get_mpi_type<NumberType>());
+	flush_count_messages(count_buffers, myrank, world_size, get_mpi_type<NumberType>(),qstr);
 	if (DEBUG_MODE)
 	{
 		std::cout << "Rank [" << myrank << "]" << " SelectSeed2D: count message receiving phase\n";
@@ -75,13 +77,13 @@ inline std::vector<NumberType> selectSeed2D(std::vector<std::unordered_set<Numbe
 	{
 		std::cout << "Rank [" << myrank << "]" << " SelectSeed2D: C matrix message sending phase\n";
 	}
-	flush_occurance_messages(cooccur_buffers, myrank, world_size, get_mpi_type<NumberType>());
+	auto hold = flush_occurance_messages(cooccur_buffers, myrank, world_size, get_mpi_type<NumberType>(),qstr);
 	if (DEBUG_MODE)
 	{
 		std::cout << "Rank [" << myrank << "]" << " SelectSeed2D: C matrix message receiving phase\n";
 	}
 	receive_occurance_messages(local_C, myrank, world_size, get_mpi_type<NumberType>());
-
+	MPI_Barrier(MPI_COMM_WORLD);
 	// Seed Selection
 	MPI_Datatype mpi2num_type = create_MPI_2NUM();
 	MPI_Op maxloc_op;

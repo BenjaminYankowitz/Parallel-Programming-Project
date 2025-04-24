@@ -6,11 +6,10 @@
 #ifndef CLOCKCYCLE_H
 #define CLOCKCYCLE_H
 
-#include <ctime>
 #include <stdint.h>
 typedef uint64_t ticks;
 
-inline ticks clock_now(void)
+inline uint64_t clock_now(void)
 {
   unsigned int tbl, tbu0, tbu1;
   
@@ -21,6 +20,7 @@ inline ticks clock_now(void)
   } while (tbu0 != tbu1);
   return (((uint64_t)tbu0) << 32) | tbl;
 }
+
 
 inline double getElapsedSeconds(ticks start, ticks end)
 {

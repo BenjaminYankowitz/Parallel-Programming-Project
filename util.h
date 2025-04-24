@@ -2,6 +2,7 @@
 #ifndef UTIL_H
 #define UTIL_H
 
+#include <iostream>
 #include <unordered_map>
 #include <vector>
 #include "EdgeInfo.h"
@@ -76,7 +77,7 @@ inline void maxloc_reduce(void *in, void *inout, int *len, MPI_Datatype *datatyp
     }
 }
 
-NumberType find_global_max_node_id(int local_size,
+inline NumberType find_global_max_node_id(int local_size,
                                    int world_size,
                                    int rank,
                                    NumberType (*id_local_to_global)(NumberType, int, int))
@@ -141,11 +142,13 @@ inline void add_occurance_batch(NumberType row_index, NumberType col_index,
 
 inline void flush_count_messages(std::unordered_map<int, std::vector<NumberType>> &count_buffers,
                                  int myrank, int world_size,
-                                 MPI_Datatype mpi_type)
+                                 MPI_Datatype mpi_type, std::vector<MPI_Request>& qstr)
 {
+    qstr.resize(count_buffers.size());
+    int crn = 0;
     for (auto &[dest, buffer] : count_buffers)
     {
-        MPI_Send(buffer.data(), buffer.size(), mpi_type, dest, 0, MPI_COMM_WORLD);
+        MPI_Isend(buffer.data(), buffer.size(), mpi_type, dest, 0, MPI_COMM_WORLD,&qstr[crn++]);
     }
 
     // Send DONE message to each rank ≠ myrank
@@ -159,12 +162,14 @@ inline void flush_count_messages(std::unordered_map<int, std::vector<NumberType>
     }
 }
 
-inline void flush_occurance_messages(std::unordered_map<int, std::vector<NumberType>> &cooccur_buffers,
-                                     int myrank, int world_size, MPI_Datatype mpi_type)
+inline std::vector<MPI_Request> flush_occurance_messages(std::unordered_map<int, std::vector<NumberType>> &cooccur_buffers,
+                                     int myrank, int world_size, MPI_Datatype mpi_type, std::vector<MPI_Request>& qstr)
 {
+    qstr.resize(cooccur_buffers.size());
+    int crn = 0;
     for (auto &[dest, buffer] : cooccur_buffers)
     {
-        MPI_Send(buffer.data(), buffer.size(), mpi_type, dest, 1, MPI_COMM_WORLD);
+        MPI_Isend(buffer.data(), buffer.size(), mpi_type, dest, 1, MPI_COMM_WORLD,&qstr[crn++]);
     }
 
     // Send sentinel (-1, -1) to all other ranks
@@ -176,6 +181,7 @@ inline void flush_occurance_messages(std::unordered_map<int, std::vector<NumberT
             MPI_Send(sentinel, 2, mpi_type, rank, 98, MPI_COMM_WORLD); // tag 98 = DONE
         }
     }
+    return qstr;
 }
 
 inline void receive_count_messages(std::vector<NumberType> &local_count,
